@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <!-- Gör sidan mobilanpassad istället för "zoomad ut" på en liten skärm -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reseappen</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <h1>Vad finns nära oss? 📍</h1>
+
+  <!-- Vem röstar? Sparas i mobilens egen lagring (localStorage) så man
+       inte behöver skriva namnet varje gång man öppnar sidan. -->
+  <label for="person">Ditt namn:</label>
+  <input id="person" type="text" placeholder="t.ex. Reza">
+
+  <button id="find-btn">Hitta platser nära mig</button>
+  <p id="status"></p>
+
+  <div id="results"></div>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

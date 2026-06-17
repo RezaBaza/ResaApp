@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Databas - varje person/maskin bygger sin egen lokala databas
+*.db
+
+# OS-skrap
+.DS_Store

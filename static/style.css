@@ -1,0 +1,232 @@
+/* Mobilanpassad grundstil – stora touch-vänliga knappar, läsbar text */
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;
+  padding: 1rem;
+  background: #f7f5f2;
+  color: #222;
+  max-width: 480px;
+  margin-inline: auto;
+}
+
+h1 {
+  font-size: 1.4rem;
+}
+
+label {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 0.6rem;
+  font-size: 1rem;
+  box-sizing: border-box;
+  margin-bottom: 0.5rem;
+}
+
+#find-btn {
+  width: 100%;
+  padding: 0.8rem;
+  font-size: 1.05rem;
+  background: #2f6f4f;
+  color: white;
+  border: none;
+  border-radius: 8px;
+}
+
+#status {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+h2 {
+  font-size: 1.1rem;
+  margin-top: 1.2rem;
+}
+
+/* Snabbnavigeringen högst upp i resultatlistan. position: sticky gör att
+   den fastnar kvar i toppen av skärmen när man skrollar nedåt – så man
+   kan hoppa till en annan kategori utan att skrolla hela vägen upp. */
+.category-nav {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  background: #f7f5f2;
+  padding: 0.5rem 0;
+  margin-bottom: 0.3rem;
+  z-index: 10;
+}
+
+.category-nav a {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.6rem;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 999px;
+  color: #2f6f4f;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* Kategori utan träffar – grås ut så man ser att den finns men inte har
+   något att visa just nu (t.ex. "Strand & bad (0)" inne i en stad). */
+.category-nav-empty {
+  color: #aaa !important;
+  cursor: default;
+}
+
+/* Underrubrik för mattyp inom restaurang-sektionen (t.ex. "Italienskt"). */
+h3 {
+  font-size: 0.95rem;
+  color: #555;
+  margin-top: 0.8rem;
+  margin-bottom: 0.3rem;
+}
+
+/* Snabbnav FÖR mattyper inom restaurang-sektionen – en mindre, ljusare
+   variant av .category-nav (inte sticky, eftersom den bara behövs en
+   gång per sektion, inte hela tiden i toppen av skärmen). */
+.cuisine-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.cuisine-nav a {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background: #eef3ef;
+  border: 1px solid #d8e3da;
+  border-radius: 999px;
+  color: #2f6f4f;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.more-hint {
+  font-size: 0.8rem;
+  color: #777;
+  margin-top: -0.2rem;
+}
+
+.card {
+  background: white;
+  border-radius: 10px;
+  padding: 0.8rem;
+  margin-bottom: 0.6rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.card-header a {
+  font-size: 0.85rem;
+  color: #2f6f4f;
+  text-decoration: none;
+}
+
+.card-distance {
+  font-size: 0.8rem;
+  color: #777;
+  margin-bottom: 0.5rem;
+}
+
+.vote-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.vote-btn {
+  flex: 1;
+  padding: 0.6rem;
+  font-size: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.vote-btn:active {
+  background: #eee;
+}
+
+/* "active" sätts av Javascript när DU redan röstat så här på platsen
+   (se updateVoteUI i app.js) – ger tydlig visuell feedback om att
+   knappen "är intryckt", och påminner om att ett klick till tar bort
+   rösten igen. */
+.vote-btn.active {
+  background: #2f6f4f;
+  color: white;
+  border-color: #2f6f4f;
+}
+
+/* Lista över VILKA i familjen som röstat vad på en plats, så man inte
+   bara ser siffror utan kan se t.ex. "👍 Mamma, Pappa". Tom sträng om
+   ingen röstat ännu (skapar ingen rad). */
+.vote-names {
+  font-size: 0.8rem;
+  color: #555;
+  margin-top: 0.4rem;
+}
+
+/* "Mest gillat"-sektionen högst upp – en snabb topplista så man inte
+   behöver skrolla genom alla kategorier för att se vad familjen gillat
+   mest. Lite varmare färg (guld/gul ton) för att sticka ut från övriga
+   sektioner. */
+.top-voted {
+  background: #fff8e6;
+  border: 1px solid #f0dca0;
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.top-voted h2 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+.top-voted-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  text-decoration: none;
+  color: #222;
+  border-bottom: 1px solid #f0e6c8;
+}
+
+.top-voted-row:last-child {
+  border-bottom: none;
+}
+
+.top-voted-rank {
+  font-weight: bold;
+  color: #b8860b;
+  width: 1.2rem;
+}
+
+.top-voted-category {
+  font-size: 1rem;
+}
+
+.top-voted-name {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.top-voted-score {
+  font-size: 0.8rem;
+  color: #555;
+  white-space: nowrap;
+}
