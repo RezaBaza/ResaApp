@@ -3,10 +3,79 @@ body {
   font-family: system-ui, sans-serif;
   margin: 0;
   padding: 1rem;
-  background: #f7f5f2;
   color: #222;
   max-width: 480px;
   margin-inline: auto;
+
+  /* Dynamisk bakgrund som sakta vandrar genom färger som hör ihop med
+     familjens platser: turkos/guld (Shiraz – persisk kakelkonst),
+     blått/gult (Sverige/Stockholm), terrakotta (Italien) och
+     varmt rött/gult (Spanien). background-size är mycket större än
+     skärmen så att animationen (background-position) ger en mjuk,
+     ständigt föränderlig glöd istället för en fast bild. */
+  background-color: #f7f5f2;
+  background-image: linear-gradient(
+    120deg,
+    #1c9099 0%,    /* Shiraz-turkos */
+    #d4af37 18%,   /* Shiraz-guld */
+    #006aa7 36%,   /* Sverige-blå */
+    #fecc02 50%,   /* Sverige-gul */
+    #c1440e 68%,   /* Italien-terrakotta */
+    #2e8b57 78%,   /* Italien-grön */
+    #aa151b 90%,   /* Spanien-röd */
+    #1c9099 100%   /* tillbaka till start för sömlös loop */
+  );
+  background-size: 400% 400%;
+  animation: wanderlust-glow 40s ease-in-out infinite;
+}
+
+@keyframes wanderlust-glow {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Den rullande raden med platssymboler högst upp på sidan. Track-
+   elementet innehåller listan DUBBLERAD (se index.html) och animeras
+   exakt -50% åt sidan – eftersom halva innehållet är en exakt kopia av
+   den andra halvan ser loopen sömlös ut, utan hopp. */
+.places-marquee {
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 999px;
+  margin-bottom: 0.6rem;
+  backdrop-filter: blur(2px);
+}
+
+.places-marquee-track {
+  display: flex;
+  width: max-content;
+  gap: 1.2rem;
+  padding: 0.4rem 0.8rem;
+  white-space: nowrap;
+  animation: marquee-scroll 28s linear infinite;
+}
+
+.places-marquee-track span {
+  font-size: 0.85rem;
+  color: #444;
+}
+
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Respektera användare som valt "minska rörelse" i sina
+   tillgänglighetsinställningar – stäng av båda animationerna helt. */
+@media (prefers-reduced-motion: reduce) {
+  body {
+    animation: none;
+    background-position: 0% 50%;
+  }
+  .places-marquee-track {
+    animation: none;
+  }
 }
 
 h1 {
@@ -97,7 +166,11 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  background: #f7f5f2;
+  /* Halvgenomskinlig vit + lätt blur istället för en platt färg – den
+     rörliga bakgrunden skymtar igenom mjukt, men texten/pillarna förblir
+     fullt läsbara även när man skrollar över den. */
+  background: rgba(247, 245, 242, 0.88);
+  backdrop-filter: blur(4px);
   padding: 0.5rem 0;
   margin-bottom: 0.3rem;
   z-index: 10;

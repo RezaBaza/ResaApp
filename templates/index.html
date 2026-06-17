@@ -8,6 +8,40 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+  <!-- En smal rad som sakta rullar förbi symboler för alla platser som
+       betyder något för familjen: Shiraz (lejon/ros/vinrankor från
+       Persepolis-arvet), Stockholm (kronan/snöflingan), Italien
+       (pasta/vin/Colosseum) och Spanien (flamenco/paella/sol). Ren
+       dekoration – ingen funktion, bara lite resekänsla innan appen
+       börjar. Texten dubbleras i CSS:en så loopen blir sömlös. -->
+  <div class="places-marquee" aria-hidden="true">
+    <div class="places-marquee-track">
+      <span>🦁 Shiraz</span>
+      <span>🌹 شیراز</span>
+      <span>🍇 Persepolis</span>
+      <span>👑 Stockholm</span>
+      <span>❄️ Sverige</span>
+      <span>🍝 Italia</span>
+      <span>🏛️ Roma</span>
+      <span>🍷 Toscana</span>
+      <span>💃 España</span>
+      <span>🥘 Paella</span>
+      <span>☀️ Sol & hav</span>
+      <!-- Samma rad en gång till, så bandet känns oändligt -->
+      <span>🦁 Shiraz</span>
+      <span>🌹 شیراز</span>
+      <span>🍇 Persepolis</span>
+      <span>👑 Stockholm</span>
+      <span>❄️ Sverige</span>
+      <span>🍝 Italia</span>
+      <span>🏛️ Roma</span>
+      <span>🍷 Toscana</span>
+      <span>💃 España</span>
+      <span>🥘 Paella</span>
+      <span>☀️ Sol & hav</span>
+    </div>
+  </div>
+
   <!-- Liten hälsning till familjen högst upp innan man kommer till
        själva appen – inte funktionellt nödvändig, men kul att möta
        innan man börjar rösta om glassbarer i Ligurien. -->
@@ -18,7 +52,7 @@
       <img src="{{ url_for('static', filename='images/viana.jpg') }}" alt="Viana">
     </div>
     <p class="family-greeting">
-      Hej kära familjen, bästa fru Sadna och superdupertuffa dottern Viana! 🇮🇹<br>
+      Hej kära familjen, bästa fru Sadna och superdupertuffa dottern Viana! 🍝🌞<br>
       Snart bär det av mot Ligurien och Nice – packa solkrämen, käkglädjen
       och tålamodet för pappas GPS-appar.
     </p>
