@@ -8,6 +8,28 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+  <!-- Liten hälsning till familjen högst upp innan man kommer till
+       själva appen – inte funktionellt nödvändig, men kul att möta
+       innan man börjar rösta om glassbarer i Ligurien. -->
+  <section class="family-banner">
+    <div class="family-photos">
+      <img src="{{ url_for('static', filename='images/reza.jpg') }}" alt="Reza">
+      <img src="{{ url_for('static', filename='images/sadna.jpg') }}" alt="Sadna">
+      <img src="{{ url_for('static', filename='images/viana.jpg') }}" alt="Viana">
+    </div>
+    <p class="family-greeting">
+      Hej kära familjen, bästa fru Sadna och superdupertuffa dottern Viana! 🇮🇹<br>
+      Snart bär det av mot Ligurien och Nice – packa solkrämen, käkglädjen
+      och tålamodet för pappas GPS-appar.
+    </p>
+    <p class="family-joke">
+      PS: Viana har meddelat högt och tydligt att hon INTE tänker turista
+      runt i städer – det ska vara sol, sand och bad, annars blir det
+      mutiny på stranden. 🏖️☀️ Pappa lovar att hålla "Strand & bad"-knappen
+      varmare än asfalten i juli.
+    </p>
+  </section>
+
   <h1>Vad finns nära oss? 📍</h1>
 
   <!-- Vem röstar? Sparas i mobilens egen lagring (localStorage) så man

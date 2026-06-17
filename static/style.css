@@ -13,6 +13,47 @@ h1 {
   font-size: 1.4rem;
 }
 
+/* Familjehälsningen högst upp på sidan – varm gul/orange ton för att
+   kännas som semesterstämning, inte som resten av appens funktionella
+   gröna/vita look. */
+.family-banner {
+  background: linear-gradient(135deg, #fff3e0, #ffe8cc);
+  border: 1px solid #f3d9a8;
+  border-radius: 12px;
+  padding: 0.9rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.family-photos {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.family-photos img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.family-greeting {
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem;
+  line-height: 1.4;
+}
+
+.family-joke {
+  font-size: 0.8rem;
+  color: #6b4f23;
+  margin: 0;
+  line-height: 1.4;
+}
+
 label {
   display: block;
   margin-top: 0.5rem;
