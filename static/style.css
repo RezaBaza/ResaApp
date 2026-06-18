@@ -334,6 +334,15 @@ h3 {
   text-decoration: none;
 }
 
+/* card-header innehöll tidigare EN länk direkt, nu en wrapper-div med
+   två länkar (Karta + Vägbeskrivning) – samma flex-layout som innan. */
+.card-links {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .card-distance {
   font-size: 0.8rem;
   color: #777;
@@ -715,8 +724,37 @@ h3 {
 }
 
 .plan-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 1.05rem;
   margin-bottom: 0.2rem;
+}
+
+/* Skriv ut / dela-knapparna i varje reseplans-kort (printPlan/sharePlan
+   i app.js) – små runda ikon-knappar bredvid plan-titeln. */
+.plan-card-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.plan-print-btn,
+.plan-share-btn {
+  border: 1px solid #bfe0db;
+  background: white;
+  border-radius: 999px;
+  width: 2.1rem;
+  height: 2.1rem;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.plan-print-btn:active,
+.plan-share-btn:active {
+  background: #e3f0ee;
 }
 
 .plan-subtitle {
@@ -897,4 +935,350 @@ h3 {
   font-size: 0.82rem;
   color: #6b5a2e;
   font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------
+   Mörkt läge – knapp, samt dark-mode-klassen som JS togglar på <body>
+   (se app.js: applyTheme). Flytande rund knapp uppe i höger hörn,
+   alltid synlig oavsett vilken flik man står på.
+   ------------------------------------------------------------------ */
+.theme-toggle {
+  position: fixed;
+  top: 0.7rem;
+  right: 0.7rem;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  border: 1px solid #ddd;
+  background: white;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 50;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* ---------------------------------------------------------------------
+   Nedräkning till avresa/hemresa (renderCountdown i app.js).
+   ------------------------------------------------------------------ */
+.countdown-banner {
+  background: #eaf6f1;
+  border: 1px solid #bfe0db;
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.6rem;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #2f6f4f;
+}
+
+/* ---------------------------------------------------------------------
+   "Mest poppis"-banner (renderPopularityBanner i app.js) – döljs helt
+   tills det finns några röster (.hidden).
+   ------------------------------------------------------------------ */
+.popularity-banner {
+  background: #fff7e6;
+  border: 1px solid #f0d9a0;
+  border-radius: 10px;
+  padding: 0.55rem 0.8rem;
+  margin-bottom: 0.6rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #6b5a2e;
+}
+
+.popularity-banner.hidden {
+  display: none;
+}
+
+/* Sorteringsväljaren under "Hitta platser" – samma stil som radie-valet. */
+select#sort-places {
+  width: 100%;
+  padding: 0.6rem;
+  font-size: 1rem;
+  box-sizing: border-box;
+  margin-bottom: 0.5rem;
+}
+
+/* ---------------------------------------------------------------------
+   Kart-flik (Leaflet.js) – se index.html (#tab-map) och app.js
+   (initMapIfNeeded/renderMap).
+   ------------------------------------------------------------------ */
+.map-intro {
+  font-size: 0.85rem;
+  color: #555;
+  margin-top: 0;
+}
+
+.map-view {
+  height: 60vh;
+  min-height: 320px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+}
+
+/* ---------------------------------------------------------------------
+   Väder-flik – se index.html (#tab-weather) och app.js (loadWeather/
+   renderForecastTable/renderStaticClimateTable).
+   ------------------------------------------------------------------ */
+.weather-loading,
+.weather-note {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.weather-error {
+  font-size: 0.8rem;
+  color: #a14444;
+  margin-top: 0.5rem;
+}
+
+.weather-card {
+  background: white;
+  border: 1px solid #e2e2e2;
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.7rem;
+}
+
+.weather-card h3 {
+  margin-top: 0;
+}
+
+.weather-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.weather-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  color: #555;
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid #ddd;
+}
+
+.weather-table td {
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid #eee;
+}
+
+/* ---------------------------------------------------------------------
+   Mörkt läge – faktiska färgövergångar. Ligger sist så de vinner över
+   alla ovanstående regler (samma specificitet, senare i filen).
+   ------------------------------------------------------------------ */
+body.dark-mode {
+  color: #e8e8e8;
+  background-color: #1b1f1d;
+  background-image: none;
+}
+
+body.dark-mode .theme-toggle {
+  background: #2a2f2d;
+  border-color: #444;
+  color: #f0f0f0;
+}
+
+body.dark-mode .places-marquee {
+  background: rgba(40, 44, 42, 0.6);
+}
+
+body.dark-mode .places-marquee-track span {
+  color: #ccc;
+}
+
+body.dark-mode .family-banner {
+  background: linear-gradient(135deg, #2e2620, #332a1f);
+  border-color: #5a4a2e;
+}
+
+body.dark-mode .family-greeting {
+  color: #eee;
+}
+
+body.dark-mode .family-joke {
+  color: #d8b778;
+}
+
+body.dark-mode #status {
+  color: #ccc;
+}
+
+body.dark-mode .tab-btn {
+  background: #2a2f2d;
+  border-color: #444;
+  color: #ccc;
+}
+
+body.dark-mode .tab-btn.active {
+  background: #3a8463;
+  border-color: #3a8463;
+  color: white;
+}
+
+body.dark-mode .countdown-banner {
+  background: #1e2f27;
+  border-color: #3a5a4c;
+  color: #8fd9b8;
+}
+
+body.dark-mode .popularity-banner {
+  background: #332b1a;
+  border-color: #5a4a2e;
+  color: #e3c785;
+}
+
+body.dark-mode .card,
+body.dark-mode .plan-leaderboard-row,
+body.dark-mode .weather-card,
+body.dark-mode .comment-row,
+body.dark-mode .packing-item,
+body.dark-mode .top-voted-row {
+  background: #242825;
+  border-color: #3a3f3c;
+  color: #e8e8e8;
+}
+
+body.dark-mode .plan-card {
+  background: #1e2622;
+  border-color: #3a5a4c;
+}
+
+body.dark-mode .plan-summary {
+  background: #1c2422;
+  border-color: #3a5a4c;
+}
+
+body.dark-mode .plan-leaderboard,
+body.dark-mode .top-voted {
+  background: #2a2418;
+  border-color: #5a4a2e;
+}
+
+body.dark-mode .plan-leaderboard-leader {
+  background: #332b1a;
+  border-color: #8a712e;
+}
+
+body.dark-mode .plan-route-map,
+body.dark-mode .plan-print-btn,
+body.dark-mode .plan-share-btn,
+body.dark-mode .packing-filter-btn {
+  background: #242825;
+  border-color: #3a5a4c;
+  color: #8fd9b8;
+}
+
+body.dark-mode .packing-filter-btn.active {
+  background: #3a8463;
+  color: white;
+}
+
+body.dark-mode .vote-btn {
+  background: #2a2f2d;
+  border-color: #444;
+  color: #e8e8e8;
+}
+
+body.dark-mode .vote-btn.active {
+  background: #3a8463;
+  border-color: #3a8463;
+  color: white;
+}
+
+body.dark-mode .vote-names,
+body.dark-mode .card-distance,
+body.dark-mode .plan-subtitle,
+body.dark-mode .plan-nights,
+body.dark-mode .more-hint,
+body.dark-mode .packing-added-by,
+body.dark-mode .weather-loading,
+body.dark-mode .weather-note,
+body.dark-mode .map-intro,
+body.dark-mode .plans-intro,
+body.dark-mode .packing-intro {
+  color: #aaa;
+}
+
+body.dark-mode input[type="text"],
+body.dark-mode select {
+  background: #242825;
+  border: 1px solid #444;
+  color: #e8e8e8;
+}
+
+body.dark-mode .category-nav {
+  background: rgba(27, 31, 29, 0.9);
+}
+
+body.dark-mode .category-nav a,
+body.dark-mode .cuisine-nav a {
+  background: #242825;
+  border-color: #3a3f3c;
+  color: #8fd9b8;
+}
+
+body.dark-mode .plan-table th,
+body.dark-mode .plan-table td,
+body.dark-mode .weather-table th,
+body.dark-mode .weather-table td {
+  border-color: #3a3f3c;
+  color: #e8e8e8;
+}
+
+body.dark-mode .plan-info-row td {
+  background: #1c2422;
+}
+
+body.dark-mode .packing-for-alla {
+  background: #333;
+  color: #bbb;
+}
+
+body.dark-mode .packing-for-person {
+  background: #1e3a33;
+  color: #8fd9b8;
+}
+
+/* ---------------------------------------------------------------------
+   Utskrift (printPlan i app.js, knappen 🖨️ på varje reseplan) – döljer
+   allt utom själva plan-innehållet, så man får ett städat papper/PDF
+   istället för hela appen med knappar och formulär.
+   ------------------------------------------------------------------ */
+@media print {
+  .theme-toggle,
+  .tab-nav,
+  .places-marquee,
+  .family-banner,
+  #find-btn,
+  label[for="radius"],
+  select#radius,
+  label[for="sort-places"],
+  select#sort-places,
+  .packing-form,
+  .packing-filter,
+  .vote-row,
+  .vote-names,
+  .comments-details,
+  .plan-card-actions,
+  .countdown-banner,
+  .popularity-banner,
+  label[for="person"],
+  #person,
+  #status,
+  .plan-leaderboard {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+    animation: none;
+  }
+
+  .plan-card {
+    border: 1px solid #999;
+    background: white;
+  }
 }

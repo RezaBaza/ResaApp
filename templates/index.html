@@ -19,8 +19,18 @@
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/icon-192.png') }}">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reseappen">
+
+  <!-- Leaflet (kart-biblioteket) – bara CSS/JS, inga API-nycklar behövs
+       eftersom vi använder OpenStreetMaps egna gratis kartplattor. -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
+  <!-- Liten flytande knapp för att växla mörkt/ljust läge. Ligger
+       UTANFÖR flikarna eftersom den ska gå att nå oavsett vilken flik
+       man står på. Valet sparas i localStorage (se app.js) så det
+       finns kvar nästa gång man öppnar appen. -->
+  <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Växla mörkt/ljust läge">🌙</button>
+
   <!-- En smal rad som sakta rullar förbi symboler för alla platser som
        betyder något för familjen: Shiraz (lejon/ros/vinrankor från
        Persepolis-arvet), Stockholm (kronan/snöflingan), Italien
@@ -85,14 +95,26 @@
   <input id="person" type="text" placeholder="t.ex. Reza">
   <p id="status"></p>
 
-  <!-- Två separata flikar istället för en lång sida man måste skrolla
-       igenom – annars hamnar "Hitta platser"-knappen långt ner under
-       alla reseplans-korten. Bara EN flik är synlig i taget
+  <!-- Nedräkning till avresan (16 juli) / hemresan (5 augusti) – fylls
+       i av app.js (renderCountdown). Ligger ovanför flikarna eftersom
+       den är relevant oavsett vilken flik man tittar på. -->
+  <section id="countdown-banner" class="countdown-banner"></section>
+
+  <!-- "Mest poppis just nu" – visar den mest röstade reseplanen och
+       (om man redan sökt fram platser) den mest röstade platsen.
+       Döljs helt tills det finns några röster att visa (app.js). -->
+  <section id="popularity-banner" class="popularity-banner hidden"></section>
+
+  <!-- Flikar istället för en lång sida man måste skrolla igenom –
+       annars hamnar "Hitta platser"-knappen långt ner under alla
+       reseplans-korten. Bara EN flik är synlig i taget
        (.tab-section.hidden i CSS:en), och knapparna i .tab-nav styr
        vilken (se app.js: initTabs). -->
   <nav class="tab-nav">
     <button class="tab-btn active" data-tab="tab-plans">🗺️ Reseplaner</button>
     <button class="tab-btn" data-tab="tab-nearby">📍 Hitta platser</button>
+    <button class="tab-btn" data-tab="tab-map">🧭 Karta</button>
+    <button class="tab-btn" data-tab="tab-weather">☀️ Väder</button>
     <button class="tab-btn" data-tab="tab-packing">🧳 Packlista</button>
   </nav>
 
@@ -122,7 +144,31 @@
 
     <button id="find-btn">Hitta platser nära mig</button>
 
+    <!-- Sortering inom varje kategori: nästan/flest röster/flest
+         kommentarer. Default = avstånd, samma ordning som tidigare. -->
+    <label for="sort-places">Sortera efter:</label>
+    <select id="sort-places">
+      <option value="distance">Avstånd (närmast först)</option>
+      <option value="votes">Flest röster</option>
+      <option value="comments">Flest kommentarer</option>
+    </select>
+
     <div id="results"></div>
+  </section>
+
+  <section id="tab-map" class="tab-section hidden">
+    <h1>Karta 🧭</h1>
+    <p class="map-intro">
+      Visar platserna ni senast sökte fram under "Hitta platser", med
+      antal röster i pop-up-rutan. Sök fram platser i den fliken
+      först, så dyker de upp här.
+    </p>
+    <div id="map" class="map-view"></div>
+  </section>
+
+  <section id="tab-weather" class="tab-section hidden">
+    <h1>Väder ☀️</h1>
+    <div id="weather-content"></div>
   </section>
 
   <section id="tab-packing" class="tab-section hidden">
@@ -156,6 +202,9 @@
     <ul id="packing-list" class="packing-list"></ul>
   </section>
 
+  <!-- Leaflet-biblioteket (kartmotorn) måste laddas FÖRE app.js,
+       eftersom app.js använder den globala "L"-variabeln direkt. -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

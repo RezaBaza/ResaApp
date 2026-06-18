@@ -80,6 +80,14 @@ const statusEl = document.getElementById("status");
 const resultsEl = document.getElementById("results");
 const plansEl = document.getElementById("plans");
 const radiusSelect = document.getElementById("radius");
+const sortPlacesSelect = document.getElementById("sort-places");
+
+// Resans datum (se projektinstruktionerna: Sto-Bgy 16 juli, hemresa 5
+// aug). Används av både nedräkningen (renderCountdown) och vädersidan
+// (loadWeather) – en enda källa istället för att hårdkoda datumen på
+// flera ställen.
+const TRIP_START = new Date("2026-07-16T00:00:00");
+const TRIP_END = new Date("2026-08-05T00:00:00");
 
 // Återanvänd sparat namn om man besökt sidan tidigare.
 personInput.value = localStorage.getItem("person") || "";
@@ -108,10 +116,267 @@ function initTabs() {
       sections.forEach((section) =>
         section.classList.toggle("hidden", section.id !== button.dataset.tab)
       );
+
+      // Kartan ligger i en flik som är dold (display:none) tills man
+      // klickar dit – Leaflet kan inte räkna ut storleken på en osynlig
+      // ruta, så vi måste invalidateSize() FÖRST när rutan blivit synlig,
+      // annars blir kartan bara grå tills man råkar resiza fönstret.
+      if (button.dataset.tab === "tab-map") {
+        initMapIfNeeded();
+        requestAnimationFrame(() => {
+          leafletMap.invalidateSize();
+          renderMap();
+        });
+      }
+
+      if (button.dataset.tab === "tab-weather") {
+        loadWeatherOnce();
+      }
     });
   });
 }
 initTabs();
+
+// ---------------------------------------------------------------------------
+// Mörkt läge – sparas i localStorage så valet finns kvar nästa besök.
+// Vi skriver INTE om hela style.css till CSS-variabler (stor omskrivning
+// för en liten funktion) – istället ligger ett färdigt mörkt tema i en
+// "body.dark-mode ..."-sektion längst ner i style.css, och vi växlar bara
+// den klassen här.
+// ---------------------------------------------------------------------------
+const themeToggleBtn = document.getElementById("theme-toggle");
+
+function applyTheme(theme) {
+  document.body.classList.toggle("dark-mode", theme === "dark");
+  themeToggleBtn.textContent = theme === "dark" ? "☀️" : "🌙";
+}
+
+applyTheme(localStorage.getItem("theme") || "light");
+
+themeToggleBtn.addEventListener("click", () => {
+  const newTheme = document.body.classList.contains("dark-mode") ? "light" : "dark";
+  localStorage.setItem("theme", newTheme);
+  applyTheme(newTheme);
+});
+
+// ---------------------------------------------------------------------------
+// Nedräkning till avresa/hemresa.
+// ---------------------------------------------------------------------------
+function renderCountdown() {
+  const el = document.getElementById("countdown-banner");
+  if (!el) return;
+
+  const today = new Date();
+  const daysToDeparture = Math.ceil((TRIP_START - today) / 86400000);
+  const daysToReturn = Math.ceil((TRIP_END - today) / 86400000);
+
+  let text;
+  if (daysToDeparture > 0) {
+    text = `🧳 ${daysToDeparture} ${daysToDeparture === 1 ? "dag" : "dagar"} kvar till avresan (16 juli)!`;
+  } else if (daysToReturn > 0) {
+    text = `✈️ Ni är på resa nu! ${daysToReturn} ${daysToReturn === 1 ? "dag" : "dagar"} kvar till hemresan (5 augusti).`;
+  } else {
+    text = `🏠 Resan är klar – hoppas det var fantastiskt!`;
+  }
+  el.textContent = text;
+}
+renderCountdown();
+
+// ---------------------------------------------------------------------------
+// "Mest poppis just nu" – kombinerar topplistan för reseplaner
+// (currentPlans, redan beräknad av renderPlanLeaderboard) och topplistan
+// för platser (lastPlaces, ifyllt av loadPlaces nedan).
+// ---------------------------------------------------------------------------
+function renderPopularityBanner() {
+  const el = document.getElementById("popularity-banner");
+  if (!el) return;
+
+  const parts = [];
+
+  if (currentPlans.length) {
+    const ranked = [...currentPlans].sort((a, b) => {
+      const scoreA = a.votes.up - a.votes.down;
+      const scoreB = b.votes.up - b.votes.down;
+      return scoreB - scoreA || b.votes.up - a.votes.up;
+    });
+    const top = ranked[0];
+    if (top.votes.up > 0 || top.votes.down > 0) {
+      parts.push(`🏆 Reseplan: <strong>${top.title}</strong>`);
+    }
+  }
+
+  if (lastPlaces.length) {
+    const ranked = lastPlaces
+      .map((place) => ({ place, score: place.votes.up - place.votes.down }))
+      .filter((entry) => entry.place.votes.up > 0 || entry.place.votes.down > 0)
+      .sort((a, b) => b.score - a.score || b.place.votes.up - a.place.votes.up);
+    if (ranked.length) {
+      parts.push(`📍 Plats: <strong>${ranked[0].place.name}</strong>`);
+    }
+  }
+
+  if (parts.length === 0) {
+    el.classList.add("hidden");
+    return;
+  }
+  el.classList.remove("hidden");
+  el.innerHTML = `Mest poppis just nu — ${parts.join(" &nbsp;|&nbsp; ")}`;
+}
+
+// ---------------------------------------------------------------------------
+// Kart-vy (Leaflet) – visar de senast hämtade platserna från
+// "Hitta platser" som markörer. Reseplanernas etapper har bara
+// textadresser (inga koordinater) i plans.py, så de visas inte som
+// markörer – men hela bilrutten finns redan som en klickbar Google
+// Maps-länk i varje plan-kort.
+// ---------------------------------------------------------------------------
+let leafletMap = null;
+let markersLayer = null;
+
+function initMapIfNeeded() {
+  if (leafletMap) return;
+  leafletMap = L.map("map");
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: "© OpenStreetMap-bidragsgivare",
+  }).addTo(leafletMap);
+  markersLayer = L.layerGroup().addTo(leafletMap);
+  leafletMap.setView([45.0, 9.0], 6);
+}
+
+function renderMap() {
+  if (!leafletMap || !markersLayer) return;
+  markersLayer.clearLayers();
+
+  if (!lastPlaces.length) {
+    return;
+  }
+
+  const bounds = [];
+  for (const place of lastPlaces) {
+    const marker = L.marker([place.lat, place.lon]).addTo(markersLayer);
+    const commentsLine = place.comment_count
+      ? `<br>💬 ${place.comment_count} kommentarer`
+      : "";
+    marker.bindPopup(
+      `<strong>${place.name}</strong><br>👍 ${place.votes.up} 👎 ${place.votes.down}${commentsLine}`
+    );
+    bounds.push([place.lat, place.lon]);
+  }
+  leafletMap.fitBounds(bounds, { padding: [30, 30] });
+}
+
+// ---------------------------------------------------------------------------
+// Väderprognos. Open-Meteo ger bara prognoser upp till ~16 dagar framåt –
+// så länge avresan ligger längre bort än det visar vi typiska
+// juli/augusti-värden istället, och växlar automatiskt till en riktig
+// live-prognos när det är nära nog.
+// ---------------------------------------------------------------------------
+const WEATHER_LOCATIONS = [
+  { name: "Comosjön", lat: 45.81, lon: 9.09 },
+  { name: "Cinque Terre / La Spezia", lat: 44.10, lon: 9.82 },
+  { name: "Nice", lat: 43.70, lon: 7.27 },
+  { name: "Saint-Tropez", lat: 43.27, lon: 6.64 },
+  { name: "Courmayeur (bergsklimat)", lat: 45.79, lon: 6.97 },
+  { name: "Milano", lat: 45.46, lon: 9.19 },
+];
+
+const TYPICAL_CLIMATE = [
+  { name: "Comosjön", high: 28, low: 18, rain: "Låg regnrisk" },
+  { name: "Cinque Terre / La Spezia", high: 27, low: 20, rain: "Låg regnrisk" },
+  { name: "Nice", high: 27, low: 20, rain: "Mycket låg regnrisk" },
+  { name: "Saint-Tropez", high: 28, low: 20, rain: "Mycket låg regnrisk" },
+  { name: "Courmayeur (bergsklimat)", high: 22, low: 12, rain: "Större chans för eftermiddagsskurar" },
+  { name: "Milano", high: 29, low: 20, rain: "Måttlig, kan vara fuktigt" },
+];
+
+let weatherLoaded = false;
+
+function loadWeatherOnce() {
+  if (weatherLoaded) return;
+  weatherLoaded = true;
+  loadWeather();
+}
+
+function formatDateISO(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+async function loadWeather() {
+  const el = document.getElementById("weather-content");
+  el.innerHTML = `<p class="weather-loading">Hämtar väderdata...</p>`;
+
+  const today = new Date();
+  const daysUntilTrip = Math.ceil((TRIP_START - today) / 86400000);
+
+  if (daysUntilTrip > 15) {
+    el.innerHTML = renderStaticClimateTable(daysUntilTrip);
+    return;
+  }
+
+  try {
+    const results = await Promise.all(WEATHER_LOCATIONS.map(fetchForecast));
+    el.innerHTML = renderForecastTable(results);
+  } catch (err) {
+    el.innerHTML =
+      renderStaticClimateTable(daysUntilTrip) +
+      `<p class="weather-error">Kunde inte hämta en live-prognos just nu, visar ungefärliga julivärden istället.</p>`;
+  }
+}
+
+async function fetchForecast(loc) {
+  const start = formatDateISO(new Date());
+  const end = formatDateISO(new Date(Date.now() + 15 * 86400000));
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}` +
+    `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_mean` +
+    `&timezone=auto&start_date=${start}&end_date=${end}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("väder-API svarade inte ok");
+  const data = await response.json();
+  return { loc, data };
+}
+
+function renderForecastTable(results) {
+  return results
+    .map(({ loc, data }) => {
+      const days = data.daily.time
+        .map((date, i) => {
+          const max = Math.round(data.daily.temperature_2m_max[i]);
+          const min = Math.round(data.daily.temperature_2m_min[i]);
+          const rain = Math.round(data.daily.precipitation_probability_mean?.[i] ?? 0);
+          return `<tr><td>${date}</td><td>${max}° / ${min}°</td><td>${rain}%</td></tr>`;
+        })
+        .join("");
+      return `
+        <div class="weather-card">
+          <h3>${loc.name}</h3>
+          <table class="weather-table">
+            <thead><tr><th>Datum</th><th>Max/Min</th><th>Regnrisk</th></tr></thead>
+            <tbody>${days}</tbody>
+          </table>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderStaticClimateTable(daysUntilTrip) {
+  const rows = TYPICAL_CLIMATE.map(
+    (loc) => `<tr><td>${loc.name}</td><td>${loc.high}° / ${loc.low}°</td><td>${loc.rain}</td></tr>`
+  ).join("");
+  return `
+    <p class="weather-note">
+      ${daysUntilTrip} dagar kvar till avresan – en riktig väderprognos visas
+      automatiskt här när det är 16 dagar eller mindre kvar. Tills då,
+      ungefärliga juli/augusti-värden (dagstemperatur / natt-temperatur):
+    </p>
+    <table class="weather-table">
+      <thead><tr><th>Plats</th><th>Typisk temp</th><th>Nederbörd</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
 
 // Reseplans-alternativen (se plans.py) är statiska och behöver ingen
 // GPS-position – ladda dem direkt när sidan öppnas, så familjen kan
@@ -160,6 +425,8 @@ function renderPlans(plans) {
   for (const plan of plans) {
     plansEl.appendChild(renderPlanCard(plan));
   }
+
+  renderPopularityBanner();
 }
 
 function renderPlanLeaderboard() {
@@ -286,6 +553,10 @@ function renderPlanCard(plan) {
   card.innerHTML = `
     <div class="plan-card-header">
       <strong>${plan.title}</strong>
+      <div class="plan-card-actions">
+        <button type="button" class="plan-print-btn" title="Skriv ut / spara som PDF">🖨️</button>
+        <button type="button" class="plan-share-btn" title="Dela reseplan">🔗</button>
+      </div>
     </div>
     <p class="plan-subtitle">${plan.subtitle}</p>
     ${routeMapLine}
@@ -327,6 +598,8 @@ function renderPlanCard(plan) {
 
   card.querySelector(".up").addEventListener("click", () => sendPlanVote(plan, 1, card));
   card.querySelector(".down").addEventListener("click", () => sendPlanVote(plan, -1, card));
+  card.querySelector(".plan-print-btn").addEventListener("click", () => printPlan(plan, card));
+  card.querySelector(".plan-share-btn").addEventListener("click", () => sharePlan(plan));
 
   updateVoteUI(card, plan.votes);
 
@@ -368,6 +641,42 @@ async function sendPlanVote(plan, voteValue, card) {
   // resultattavlan direkt – annars ser man bara sitt eget kort uppdateras
   // och måste själv jämföra siffrorna i alla fyra korten för att veta.
   renderPlanLeaderboard();
+  renderPopularityBanner();
+}
+
+// Skriver ut/sparar en enskild reseplan som PDF via webbläsarens vanliga
+// utskriftsdialog (window.print). Fäller ut etapp-detaljerna FÖRST, så de
+// kommer med på utskriften även om de var hopfällda på skärmen. En
+// @media print-regel i style.css döljer nav/knappar/formulär som inte är
+// relevanta på papper.
+function printPlan(plan, card) {
+  const details = card.querySelector(".plan-details");
+  if (details) details.open = true;
+  window.print();
+}
+
+// Delar reseplanen via webbläsarens inbyggda delningsruta
+// (navigator.share – finns på mobil/iOS/Android), eller kopierar en kort
+// textsammanfattning + kart-länk till urklipp om delning inte stöds
+// (vanligast på dator).
+async function sharePlan(plan) {
+  const text = `${plan.title}\n${plan.subtitle}${plan.route_map ? `\n${plan.route_map}` : ""}`;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: plan.title, text, url: plan.route_map || undefined });
+    } catch (err) {
+      // Användaren ångrade delningen – inget fel att visa.
+    }
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    statusEl.textContent = "Reseplanen kopierad till urklipp – klistra in var du vill dela den!";
+  } catch (err) {
+    statusEl.textContent = "Kunde inte kopiera reseplanen.";
+  }
 }
 
 findBtn.addEventListener("click", () => {
@@ -419,7 +728,38 @@ async function loadPlaces(lat, lon) {
     ? `Hittade ${places.length} platser inom ${radiusText}.`
     : `Hittade inga platser inom ${radiusText} – prova en större radie.`;
 
-  renderPlaces(places);
+  lastPlaces = places;
+  renderPlaces(sortPlacesList(places));
+  renderPopularityBanner();
+  // Om man redan står på Karta-fliken när en ny sökning görs, uppdatera
+  // markörerna direkt istället för att vänta på nästa flik-byte.
+  if (leafletMap) renderMap();
+}
+
+// Senast hämtade platser från "Hitta platser" – används av sorteringen,
+// "Mest poppis"-bannern och kart-fliken, så de inte behöver göra ett nytt
+// nätverksanrop för att visa samma data på olika sätt.
+let lastPlaces = [];
+
+sortPlacesSelect.value = localStorage.getItem("sortPlaces") || "distance";
+sortPlacesSelect.addEventListener("change", () => {
+  localStorage.setItem("sortPlaces", sortPlacesSelect.value);
+  if (lastPlaces.length) renderPlaces(sortPlacesList(lastPlaces));
+});
+
+// Sorterar EN KOPIA av listan – grupperingen per kategori (renderPlaces)
+// sker fortfarande efteråt, så "sortera efter" avgör i vilken ordning
+// platserna kommer INOM varje kategori, inte vilka kategorier som visas.
+function sortPlacesList(places) {
+  const sorted = [...places];
+  const mode = sortPlacesSelect.value;
+  if (mode === "votes") {
+    sorted.sort((a, b) => (b.votes.up - b.votes.down) - (a.votes.up - a.votes.down));
+  } else if (mode === "comments") {
+    sorted.sort((a, b) => (b.comment_count || 0) - (a.comment_count || 0));
+  }
+  // "distance" -> ingen omsortering, redan sorterat efter avstånd av servern.
+  return sorted;
 }
 
 // Hur många platser som visas i "Mest gillat"-listan högst upp.
@@ -617,6 +957,11 @@ function renderPlaceCard(place) {
 
   const mapsUrl =
     `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lon}`;
+  // Direkt vägbeskrivning (bil) till platsen, istället för bara en
+  // sök-länk – praktiskt när man redan är på väg och bara vill ha
+  // navigering, inte leta upp platsen själv på kartan först.
+  const directionsUrl =
+    `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lon}&travelmode=driving`;
 
   // distance_m kommer från servern (se app.py: _distance_m). Avrundar till
   // hela meter under 1 km, annars till en decimal i kilometer.
@@ -628,7 +973,10 @@ function renderPlaceCard(place) {
   card.innerHTML = `
     <div class="card-header">
       <strong>${place.name}</strong>
-      <a href="${mapsUrl}" target="_blank" rel="noopener">Karta ↗</a>
+      <div class="card-links">
+        <a href="${mapsUrl}" target="_blank" rel="noopener">Karta ↗</a>
+        <a href="${directionsUrl}" target="_blank" rel="noopener">Vägbeskrivning ↗</a>
+      </div>
     </div>
     <div class="card-distance">${distanceText}</div>
     <div class="vote-row">
