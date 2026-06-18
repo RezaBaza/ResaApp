@@ -27,6 +27,7 @@ app = Flask(__name__)
 # skulle krascha med "no such table: votes".
 db.init_db()
 db.init_packing_table()
+db.init_comments_table()
 
 
 def _distance_m(lat1, lon1, lat2, lon2):
@@ -80,11 +81,13 @@ def nearby():
     # räkna ut avståndet från användarens position till varje plats.
     osm_ids = [p["osm_id"] for p in places]
     votes = db.get_vote_summary(osm_ids)
+    comment_counts = db.get_comment_counts(osm_ids)
     for place in places:
         place["votes"] = votes.get(
             place["osm_id"], {"up": 0, "down": 0, "up_names": [], "down_names": []}
         )
         place["distance_m"] = _distance_m(lat, lon, place["lat"], place["lon"])
+        place["comment_count"] = comment_counts.get(place["osm_id"], 0)
 
     # Sortera så de NÄRMASTE platserna kommer först i listan. Frontend
     # visar bara de 20 första per kategori, så ordningen avgör vilka
@@ -179,16 +182,28 @@ def get_packing():
 def add_packing():
     """
     Lägger till en ny rad i packlistan, t.ex:
-        {"item": "Solkräm", "person": "Sadna"}
+        {"item": "Solkräm", "person": "Sadna", "for_person": "Viana"}
+
+    for_person är valfritt – default "Alla" (delade saker som pass,
+    laddare osv som inte hör till en enskild person).
     """
     payload = request.get_json(silent=True) or {}
     item = (payload.get("item") or "").strip()
     person = (payload.get("person") or "").strip()
+    for_person = (payload.get("for_person") or "Alla").strip() or "Alla"
     if not item or not person:
         return jsonify({"error": "item och person krävs"}), 400
 
-    new_id = db.add_packing_item(item, person)
-    return jsonify({"id": new_id, "item": item, "added_by": person, "done": False})
+    new_id = db.add_packing_item(item, person, for_person)
+    return jsonify(
+        {
+            "id": new_id,
+            "item": item,
+            "added_by": person,
+            "done": False,
+            "for_person": for_person,
+        }
+    )
 
 
 @app.route("/api/packing/<int:item_id>/toggle", methods=["POST"])
@@ -204,6 +219,39 @@ def toggle_packing(item_id):
 def delete_packing(item_id):
     """Tar bort en rad ur packlistan."""
     db.delete_packing_item(item_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/comments", methods=["GET"])
+def get_comments():
+    """Hämtar alla kommentarer för en plats: /api/comments?osm_id=node/123"""
+    osm_id = request.args.get("osm_id")
+    if not osm_id:
+        return jsonify({"error": "osm_id krävs"}), 400
+    return jsonify(db.get_comments(osm_id))
+
+
+@app.route("/api/comments", methods=["POST"])
+def add_comment():
+    """
+    Lägger till en kommentar, t.ex:
+        {"osm_id": "node/123", "person": "Reza", "text": "Bra parkering här"}
+    """
+    payload = request.get_json(silent=True) or {}
+    osm_id = (payload.get("osm_id") or "").strip()
+    person = (payload.get("person") or "").strip()
+    text = (payload.get("text") or "").strip()
+    if not osm_id or not person or not text:
+        return jsonify({"error": "osm_id, person och text krävs"}), 400
+
+    new_id = db.add_comment(osm_id, person, text)
+    return jsonify({"id": new_id, "person": person, "text": text})
+
+
+@app.route("/api/comments/<int:comment_id>", methods=["DELETE"])
+def delete_comment(comment_id):
+    """Tar bort en kommentar."""
+    db.delete_comment(comment_id)
     return jsonify({"ok": True})
 
 

@@ -293,18 +293,20 @@ function renderPlanCard(plan) {
     ${transferLine ? `<p class="plan-transfer">${transferLine}</p>` : ""}
     <details class="plan-details">
       <summary>📋 Etapper, hotell &amp; vad ni kan göra</summary>
-      <table class="plan-table">
-        <thead>
-          <tr>
-            <th>Etapp</th>
-            <th>Hotellförslag</th>
-            <th>Pris</th>
-            <th>Karta</th>
-            <th>Boka</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
+      <div class="plan-table-wrap">
+        <table class="plan-table">
+          <thead>
+            <tr>
+              <th>Etapp</th>
+              <th>Hotellförslag</th>
+              <th>Pris</th>
+              <th>Karta</th>
+              <th>Boka</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
       ${
         plan.summary
           ? `<div class="plan-summary">
@@ -634,6 +636,14 @@ function renderPlaceCard(place) {
       <button class="vote-btn down">👎 <span class="down-count">${place.votes.down}</span></button>
     </div>
     <div class="vote-names"></div>
+    <details class="comments-details">
+      <summary>💬 Kommentarer <span class="comment-count">${place.comment_count ? `(${place.comment_count})` : ""}</span></summary>
+      <ul class="comments-list"></ul>
+      <form class="comment-form">
+        <input type="text" class="comment-input" placeholder="Skriv en kommentar..." autocomplete="off">
+        <button type="submit">Skicka</button>
+      </form>
+    </details>
   `;
 
   card.querySelector(".up").addEventListener("click", () => sendVote(place, 1, card));
@@ -644,7 +654,97 @@ function renderPlaceCard(place) {
   // här platsen – annars vet man inte varför knappen ser "tryckt" ut.
   updateVoteUI(card, place.votes);
 
+  // Kommentarerna hämtas bara EN gång, första gången man fäller ut
+  // <details> – annars skulle vi göra ett onödigt nätverksanrop per
+  // plats redan vid sidladdning (kan vara 100+ platser i en kategori).
+  const commentsDetails = card.querySelector(".comments-details");
+  let commentsLoaded = false;
+  commentsDetails.addEventListener("toggle", () => {
+    if (commentsDetails.open && !commentsLoaded) {
+      commentsLoaded = true;
+      loadComments(place.osm_id, card);
+    }
+  });
+
+  card.querySelector(".comment-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    submitComment(place.osm_id, card);
+  });
+
   return card;
+}
+
+async function loadComments(osmId, card) {
+  const listEl = card.querySelector(".comments-list");
+  listEl.innerHTML = `<li class="comment-loading">Hämtar kommentarer...</li>`;
+
+  const response = await fetch(`/api/comments?osm_id=${encodeURIComponent(osmId)}`);
+  if (!response.ok) {
+    listEl.innerHTML = `<li class="comment-loading">Kunde inte hämta kommentarer.</li>`;
+    return;
+  }
+
+  const comments = await response.json();
+  renderComments(comments, card);
+}
+
+function renderComments(comments, card) {
+  const listEl = card.querySelector(".comments-list");
+  listEl.innerHTML = "";
+
+  if (comments.length === 0) {
+    listEl.innerHTML = `<li class="comment-empty">Inga kommentarer än – skriv den första!</li>`;
+    return;
+  }
+
+  for (const comment of comments) {
+    listEl.appendChild(renderCommentRow(comment));
+  }
+}
+
+function renderCommentRow(comment) {
+  const row = document.createElement("li");
+  row.className = "comment-row";
+  row.innerHTML = `
+    <span class="comment-text"><strong>${comment.person}:</strong> ${comment.text}</span>
+  `;
+  return row;
+}
+
+async function submitComment(osmId, card) {
+  const person = personInput.value.trim();
+  if (!person) {
+    statusEl.textContent = "Skriv ditt namn först, så vi vet vem som kommenterar.";
+    return;
+  }
+
+  const input = card.querySelector(".comment-input");
+  const text = input.value.trim();
+  if (!text) return;
+
+  const response = await fetch("/api/comments", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ osm_id: osmId, person, text }),
+  });
+
+  if (!response.ok) {
+    statusEl.textContent = "Kunde inte spara kommentaren.";
+    return;
+  }
+
+  const newComment = await response.json();
+  input.value = "";
+
+  const listEl = card.querySelector(".comments-list");
+  const empty = listEl.querySelector(".comment-empty");
+  if (empty) empty.remove();
+  listEl.appendChild(renderCommentRow(newComment));
+
+  // Uppdatera räknaren i <summary> direkt, utan att hämta om listan.
+  const countEl = card.querySelector(".comment-count");
+  const current = listEl.querySelectorAll(".comment-row").length;
+  countEl.textContent = `(${current})`;
 }
 
 // Skriver om röstknapparnas utseende (markerad/inte) och listan med
@@ -709,24 +809,51 @@ async function sendVote(place, voteValue, card) {
 
 const packingForm = document.getElementById("packing-form");
 const packingInput = document.getElementById("packing-input");
+const packingForSelect = document.getElementById("packing-for");
 const packingListEl = document.getElementById("packing-list");
+const packingFilterEl = document.getElementById("packing-filter");
+
+// Vilken person-flik som är vald just nu i packlistan ("alla" = ingen
+// filtrering). Sparas i en vanlig variabel (inte localStorage) – det är
+// en visningsinställning för stunden, inget man behöver komma ihåg
+// mellan besök.
+let packingFilter = "alla";
+let allPackingItems = [];
 
 loadPacking();
+
+packingFilterEl.addEventListener("click", (event) => {
+  const button = event.target.closest(".packing-filter-btn");
+  if (!button) return;
+  packingFilter = button.dataset.filter;
+  packingFilterEl
+    .querySelectorAll(".packing-filter-btn")
+    .forEach((b) => b.classList.toggle("active", b === button));
+  renderPacking(allPackingItems);
+});
 
 async function loadPacking() {
   const response = await fetch("/api/packing");
   if (!response.ok) return;
   const items = await response.json();
+  allPackingItems = items;
   renderPacking(items);
 }
 
 function renderPacking(items) {
   packingListEl.innerHTML = "";
 
-  if (items.length === 0) {
+  const visible =
+    packingFilter === "alla"
+      ? items
+      : items.filter((item) => item.for_person === packingFilter || item.for_person === "Alla");
+
+  if (visible.length === 0) {
     const empty = document.createElement("li");
     empty.className = "packing-empty";
-    empty.textContent = "Listan är tom – lägg till första grejen ovan!";
+    empty.textContent = items.length
+      ? "Inget i listan för det filtret än."
+      : "Listan är tom – lägg till första grejen ovan!";
     packingListEl.appendChild(empty);
     return;
   }
@@ -734,11 +861,19 @@ function renderPacking(items) {
   // Obockade saker först (det som fortfarande behöver packas), sen det
   // som redan är klart – annars drunknar det man faktiskt behöver göra
   // längst ner i en lång lista av redan-packade-saker.
-  const sorted = [...items].sort((a, b) => Number(a.done) - Number(b.done));
+  const sorted = [...visible].sort((a, b) => Number(a.done) - Number(b.done));
 
   for (const item of sorted) {
     packingListEl.appendChild(renderPackingItem(item));
   }
+}
+
+// Liten färgad etikett som visar vem grejen är till – "Alla" får en
+// neutral grå, namnen sin egen ton, så man snabbt ser i listan vems
+// väska man tittar på.
+function forPersonBadge(forPerson) {
+  const cls = forPerson === "Alla" ? "packing-for-alla" : "packing-for-person";
+  return `<span class="packing-for ${cls}">${forPerson}</span>`;
 }
 
 function renderPackingItem(item) {
@@ -749,6 +884,7 @@ function renderPackingItem(item) {
     <label class="packing-label">
       <input type="checkbox" ${item.done ? "checked" : ""}>
       <span class="packing-text">${item.item}</span>
+      ${forPersonBadge(item.for_person || "Alla")}
     </label>
     <span class="packing-added-by">tillagt av ${item.added_by}</span>
     <button type="button" class="packing-delete" aria-label="Ta bort">✕</button>
@@ -772,9 +908,11 @@ async function deletePacking(item, row) {
   const response = await fetch(`/api/packing/${item.id}`, { method: "DELETE" });
   if (!response.ok) return;
   row.remove();
-  // Visa "listan är tom"-meddelandet om det var sista raden.
+  allPackingItems = allPackingItems.filter((i) => i.id !== item.id);
+  // Visa "listan är tom"-meddelandet om det var sista raden (i det
+  // aktuella filtret).
   if (!packingListEl.querySelector(".packing-item")) {
-    renderPacking([]);
+    renderPacking(allPackingItems);
   }
 }
 
@@ -790,10 +928,12 @@ packingForm.addEventListener("submit", async (event) => {
   const text = packingInput.value.trim();
   if (!text) return;
 
+  const forPerson = packingForSelect.value;
+
   const response = await fetch("/api/packing", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ item: text, person }),
+    body: JSON.stringify({ item: text, person, for_person: forPerson }),
   });
 
   if (!response.ok) {
@@ -803,11 +943,11 @@ packingForm.addEventListener("submit", async (event) => {
 
   const newItem = await response.json();
   packingInput.value = "";
+  allPackingItems.push(newItem);
 
-  // Ta bort ett ev. "listan är tom"-meddelande innan vi lägger till den
-  // nya raden.
-  const empty = packingListEl.querySelector(".packing-empty");
-  if (empty) empty.remove();
-
-  packingListEl.appendChild(renderPackingItem(newItem));
+  // Rendera om hela (filtrerade) listan istället för att bara stoppa in
+  // raden längst ner – annars syns den nya grejen även när filtret inte
+  // matchar (t.ex. man lägger till något för "Viana" men "Reza"-filtret
+  // är aktivt).
+  renderPacking(allPackingItems);
 });

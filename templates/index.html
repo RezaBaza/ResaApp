@@ -6,6 +6,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Reseappen</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <!-- Gör appen installerbar som hemskärms-ikon (PWA-manifest). Utan
+       detta hamnar "Lägg till på hemskärmen" ikonen som en generisk
+       webbläsare-ruta med sidans URL som namn istället för en egen
+       ikon + "Reseappen". theme-color färgar adressfältet/statusbaren
+       på Android i samma grönton som appens header. apple-touch-icon
+       behövs SEPARAT från manifestet – iOS/Safari läser inte
+       manifest-ikoner för hemskärmen, bara denna länk-tagg. -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <meta name="theme-color" content="#2f6f4f">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/icon-192.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Reseappen">
 </head>
 <body>
   <!-- En smal rad som sakta rullar förbi symboler för alla platser som
@@ -122,8 +135,23 @@
 
     <form id="packing-form" class="packing-form">
       <input id="packing-input" type="text" placeholder="t.ex. Solkräm" autocomplete="off">
+      <select id="packing-for">
+        <option value="Alla">Alla</option>
+        <option value="Reza">Reza</option>
+        <option value="Sadna">Sadna</option>
+        <option value="Viana">Viana</option>
+      </select>
       <button type="submit">Lägg till</button>
     </form>
+
+    <!-- Filter-piller: visa bara en persons grejer, eller allas. Samma
+         idé som kategori-navigeringen under "Hitta platser". -->
+    <nav id="packing-filter" class="packing-filter">
+      <button type="button" class="packing-filter-btn active" data-filter="alla">Alla</button>
+      <button type="button" class="packing-filter-btn" data-filter="Reza">Reza</button>
+      <button type="button" class="packing-filter-btn" data-filter="Sadna">Sadna</button>
+      <button type="button" class="packing-filter-btn" data-filter="Viana">Viana</button>
+    </nav>
 
     <ul id="packing-list" class="packing-list"></ul>
   </section>

@@ -190,7 +190,16 @@ def remove_vote(osm_id, person):
 
 
 def init_packing_table():
-    """Skapar packlista-tabellen om den inte redan finns."""
+    """
+    Skapar packlista-tabellen om den inte redan finns.
+
+    for_person: vem grejen är till – "Reza", "Sadna", "Viana" eller
+    "Alla" (delade saker som pass, laddare osv). Lades till EFTER att
+    tabellen redan fanns i produktion, så vi kan inte bara ändra
+    CREATE TABLE-satsen (det påverkar bara NYA databaser) – därför
+    görs en liten migrering nedan med ALTER TABLE, skyddad mot att
+    krascha om kolumnen redan lagts till en tidigare gång.
+    """
     conn = get_connection()
     conn.execute(
         """
@@ -203,16 +212,23 @@ def init_packing_table():
         )
         """
     )
+    try:
+        conn.execute(
+            "ALTER TABLE packing_items ADD COLUMN for_person TEXT NOT NULL DEFAULT 'Alla'"
+        )
+    except sqlite3.OperationalError:
+        # Kolumnen finns redan sen en tidigare körning – inget att göra.
+        pass
     conn.commit()
     conn.close()
 
 
-def add_packing_item(item, added_by):
+def add_packing_item(item, added_by, for_person="Alla"):
     """Lägger till en ny rad i packlistan, obockad."""
     conn = get_connection()
     cur = conn.execute(
-        "INSERT INTO packing_items (item, added_by, done) VALUES (?, ?, 0)",
-        (item, added_by),
+        "INSERT INTO packing_items (item, added_by, done, for_person) VALUES (?, ?, 0, ?)",
+        (item, added_by, for_person),
     )
     conn.commit()
     new_id = cur.lastrowid
@@ -224,7 +240,7 @@ def get_packing_items():
     """Hämtar hela packlistan, äldst tillagd först."""
     conn = get_connection()
     rows = conn.execute(
-        "SELECT id, item, added_by, done FROM packing_items ORDER BY id ASC"
+        "SELECT id, item, added_by, done, for_person FROM packing_items ORDER BY id ASC"
     ).fetchall()
     conn.close()
     return [
@@ -233,6 +249,7 @@ def get_packing_items():
             "item": row["item"],
             "added_by": row["added_by"],
             "done": bool(row["done"]),
+            "for_person": row["for_person"] or "Alla",
         }
         for row in rows
     ]
@@ -260,5 +277,84 @@ def delete_packing_item(item_id):
     """Tar bort en rad från packlistan helt."""
     conn = get_connection()
     conn.execute("DELETE FROM packing_items WHERE id = ?", (item_id,))
+    conn.commit()
+    conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Kommentarer – fritext under varje plats i "Hitta platser", utöver 👍/👎.
+# T.ex. "Bra parkering precis bredvid" eller "Stängt på måndagar" – sånt som
+# en röst inte fångar men som är bra att veta innan man kör dit.
+# ---------------------------------------------------------------------------
+
+
+def init_comments_table():
+    """Skapar kommentars-tabellen om den inte redan finns."""
+    conn = get_connection()
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            osm_id TEXT NOT NULL,
+            person TEXT NOT NULL,
+            text TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    conn.commit()
+    conn.close()
+
+
+def add_comment(osm_id, person, text):
+    """Lägger till en kommentar på en plats (eller reseplan, samma osm_id-trick som votes)."""
+    conn = get_connection()
+    cur = conn.execute(
+        "INSERT INTO comments (osm_id, person, text) VALUES (?, ?, ?)",
+        (osm_id, person, text),
+    )
+    conn.commit()
+    new_id = cur.lastrowid
+    conn.close()
+    return new_id
+
+
+def get_comments(osm_id):
+    """Hämtar alla kommentarer för en plats, äldst först."""
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id, person, text, created_at FROM comments WHERE osm_id = ? ORDER BY id ASC",
+        (osm_id,),
+    ).fetchall()
+    conn.close()
+    return [
+        {"id": row["id"], "person": row["person"], "text": row["text"]}
+        for row in rows
+    ]
+
+
+def get_comment_counts(osm_ids):
+    """Hämtar antal kommentarer per osm_id, t.ex. {"node/123": 2}."""
+    if not osm_ids:
+        return {}
+    conn = get_connection()
+    placeholders = ",".join("?" for _ in osm_ids)
+    rows = conn.execute(
+        f"""
+        SELECT osm_id, COUNT(*) AS n
+        FROM comments
+        WHERE osm_id IN ({placeholders})
+        GROUP BY osm_id
+        """,
+        list(osm_ids),
+    ).fetchall()
+    conn.close()
+    return {row["osm_id"]: row["n"] for row in rows}
+
+
+def delete_comment(comment_id):
+    """Tar bort en kommentar (om man skrev fel eller ångrar sig)."""
+    conn = get_connection()
+    conn.execute("DELETE FROM comments WHERE id = ?", (comment_id,))
     conn.commit()
     conn.close()

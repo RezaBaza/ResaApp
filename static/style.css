@@ -377,6 +377,69 @@ h3 {
   margin-top: 0.4rem;
 }
 
+/* Kommentarer under varje plats-kort – ihopfälld <details> precis som
+   etapp-tabellen i reseplanerna, så korten inte blir jättelånga innan
+   man faktiskt klickat för att läsa/skriva en kommentar. */
+.comments-details {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.comments-details summary {
+  cursor: pointer;
+  color: #2f6f4f;
+  font-weight: 600;
+}
+
+.comment-count {
+  font-weight: 400;
+  color: #777;
+}
+
+.comments-list {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.comment-row {
+  background: #f4f4f4;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.82rem;
+}
+
+.comment-empty,
+.comment-loading {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.comment-form {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.comment-form input {
+  flex: 1;
+  margin-bottom: 0;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.comment-form button {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  background: #2f6f4f;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
 /* "Mest gillat"-sektionen högst upp – en snabb topplista så man inte
    behöver skrolla genom alla kategorier för att se vad familjen gillat
    mest. Lite varmare färg (guld/gul ton) för att sticka ut från övriga
@@ -516,6 +579,15 @@ h3 {
   margin-bottom: 0;
 }
 
+.packing-form select {
+  flex: 0 0 auto;
+  padding: 0.5rem 0.4rem;
+  border-radius: 8px;
+  border: 1px solid #cfcfcf;
+  font-size: 0.9rem;
+  margin-bottom: 0;
+}
+
 .packing-form button {
   padding: 0.6rem 1rem;
   font-size: 0.95rem;
@@ -524,6 +596,32 @@ h3 {
   border: none;
   border-radius: 8px;
   white-space: nowrap;
+}
+
+/* Filter-piller ovanför listan: visa bara Rezas/Sadnas/Vianas grejer,
+   eller allas. Samma "pill"-känsla som .category-nav under "Hitta
+   platser", men i grönt för att höra ihop med packlistans egen knapp. */
+.packing-filter {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.7rem;
+}
+
+.packing-filter-btn {
+  border: 1px solid #bfe0db;
+  background: white;
+  color: #2f6f4f;
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.packing-filter-btn.active {
+  background: #2f6f4f;
+  color: white;
+  border-color: #2f6f4f;
 }
 
 .packing-list {
@@ -571,6 +669,27 @@ h3 {
   font-size: 0.72rem;
   color: #aaa;
   white-space: nowrap;
+}
+
+/* Liten etikett som visar VEM grejen är till (Reza/Sadna/Viana/Alla) –
+   separat från "tillagt av", som visar vem som SKREV raden. Två olika
+   saker: mamma kan lägga till en grej som är till Viana. */
+.packing-for {
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  white-space: nowrap;
+}
+
+.packing-for-alla {
+  background: #eee;
+  color: #777;
+}
+
+.packing-for-person {
+  background: #d9ece9;
+  color: #2f6f4f;
 }
 
 .packing-delete {
@@ -647,21 +766,23 @@ h3 {
 }
 
 /* Etapp-tabellen scrollar i sidled på smala skärmar istället för att
-   klämma ihop kolumnerna till oläsbarhet. */
+   klämma ihop kolumnerna till oläsbarhet. OBS: scrollningen måste ligga
+   på en WRAPPER runt <table> (se .plan-table-wrap i index.html/app.js),
+   INTE på tabellen själv med display:block – då blir <thead> och
+   <tbody> två separata "display:table"-element som var sin egen
+   kolumnbredd, så rubrikerna hamnar fel jämfört med raderna under
+   (det var precis det som hände innan: "Pris" stod över "Karta"). */
+.plan-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
 .plan-table {
   width: 100%;
+  min-width: 480px;
   border-collapse: collapse;
   font-size: 0.8rem;
   margin-bottom: 0.6rem;
-  display: block;
-  overflow-x: auto;
-  white-space: nowrap;
-}
-
-.plan-table thead,
-.plan-table tbody {
-  display: table;
-  width: 100%;
 }
 
 .plan-table th {
