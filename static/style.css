@@ -476,6 +476,30 @@ h3 {
   font-weight: 600;
 }
 
+/* Sista dagens transfer (Milano -> Bergamo flygplats) – syns direkt
+   under totalsumman, lite lugnare ton eftersom det inte är en
+   övernattning utan bara en kort körning innan hemflyget. */
+.plan-transfer {
+  font-size: 0.8rem;
+  color: #555;
+  margin: -0.3rem 0 0.6rem;
+}
+
+/* Länken till hela bilrutten (Google Maps directions med alla etapper
+   som waypoints) – ser ut som en liten knapp högst upp i kortet, så
+   den är lätt att hitta innan man scrollar genom etapp-tabellen. */
+.plan-route-map {
+  display: inline-block;
+  font-size: 0.78rem;
+  color: #2f6f4f;
+  text-decoration: none;
+  background: white;
+  border: 1px solid #bfe0db;
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
 .plan-summary {
   background: #f5fbfa;
   border: 1px solid #d9ece9;

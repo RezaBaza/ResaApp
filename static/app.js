@@ -184,11 +184,27 @@ function renderPlanCard(plan) {
     })
     .join("");
 
-  // Total körsträcka/-tid för HELA planen (summerad i plans.py), så man
-  // kan jämföra "hur mycket bilkörning" planerna innebär utan att räkna
-  // ihop etapperna själv.
+  // Total körsträcka/-tid för HELA planen (summerad i plans.py, inkl.
+  // sista dagens transfer till flygplatsen), så man kan jämföra "hur
+  // mycket bilkörning" planerna innebär utan att räkna ihop etapperna
+  // själv.
   const totalDriveLine = plan.total_drive
     ? `🚗 Totalt under resan: ca ${plan.total_drive.km} km körning, ${plan.total_drive.time}`
+    : "";
+
+  // Sista dagens transfer (Milano -> Bergamo flygplats för hemflyget) –
+  // ingen egen övernattning, bara en kort körning innan man lämnar
+  // hyrbilen.
+  const transferLine = plan.departure_transfer
+    ? `✈️ Sista dagen: kör till Bergamo flygplats (${plan.departure_transfer.km} km, ${plan.departure_transfer.time}) för hemflyget.`
+    : "";
+
+  // En enda Google Maps-länk som visar HELA bilrutten i ordning
+  // (Bergamo flygplats -> etapp A -> etapp B -> ... -> Bergamo
+  // flygplats), så man kan se hela slingan på kartan utan att öppna
+  // varje hotells karta för sig.
+  const routeMapLine = plan.route_map
+    ? `<a class="plan-route-map" href="${plan.route_map}" target="_blank" rel="noopener">🗺️ Se hela bilrutten på kartan ↗</a>`
     : "";
 
   card.innerHTML = `
@@ -196,6 +212,7 @@ function renderPlanCard(plan) {
       <strong>${plan.title}</strong>
     </div>
     <p class="plan-subtitle">${plan.subtitle}</p>
+    ${routeMapLine}
     <table class="plan-table">
       <thead>
         <tr>
@@ -208,6 +225,7 @@ function renderPlanCard(plan) {
       <tbody>${rows}</tbody>
     </table>
     ${totalDriveLine ? `<p class="plan-total-drive">${totalDriveLine}</p>` : ""}
+    ${transferLine ? `<p class="plan-transfer">${transferLine}</p>` : ""}
     ${
       plan.summary
         ? `<div class="plan-summary">

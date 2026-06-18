@@ -23,19 +23,54 @@ alternativen utan att själva googla runt:
 Plus en sammanfattande text ("summary") och total körsträcka/körtid
 ("total_drive") för hela planen.
 
+V3: sista övernattningen är nu i MILANO (inte Bergamo) – mer att göra
+sista kvällen innan hemflyget. Sista dagen kör man sedan tillbaka till
+Bergamo flygplats för att lämna hyrbilen och flyga hem
+("departure_transfer"). Varje plan har också fått en "route_map" – EN
+Google Maps-länk som visar hela bilrutten i ordning (Bergamo flygplats
+-> etapp A -> etapp B -> ... -> Milano -> Bergamo flygplats), så man
+kan se hela slingan på kartan istället för bara enskilda hotellnålar.
+
 OBS: körsträckorna/-tiderna är UPPSKATTADE bilvägs-avstånd (ingen
 ruttplanerare/API är inkopplad), avrundade till närmaste 5 km/5 min och
 markerade med "ca" – verklig tid beror på trafik, vägval och stopp.
 """
+
+import urllib.parse
 
 # Dummy-koordinat (Bergamo flygplats) – krävs av votes-tabellen men
 # används inte till något för planer (ingen karta visas baserat på den).
 _BERGAMO_LAT = 45.6739
 _BERGAMO_LON = 9.7042
 
+# Bergamo Orio al Serio (BGY) – här hämtas och lämnas hyrbilen, så det är
+# start- OCH slutpunkt för varje plans bilrutt (route_map nedan).
+_BGY_AIRPORT_ADDRESS = "Aeroporto di Bergamo Orio al Serio (BGY), Italy"
+
 
 def _maps_link(address):
-    return f"https://www.google.com/maps/search/?api=1&query={address}"
+    """Enkel Google Maps-sökning på EN adress (en hotellnål)."""
+    return f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(address)}"
+
+
+def _route_map_link(addresses):
+    """
+    Bygger EN Google Maps-länk (körvägsbeskrivning) som kedjar ihop flera
+    adresser i ordning: start -> mellanstopp -> ... -> slut. Det här är
+    "se hela rutten Bergamo till A, A till B, B till C osv" på en gång,
+    istället för att behöva öppna varje hotells karta för sig.
+    """
+    encoded = [urllib.parse.quote(a) for a in addresses]
+    origin = encoded[0]
+    destination = encoded[-1]
+    waypoints = "|".join(encoded[1:-1])
+    url = (
+        "https://www.google.com/maps/dir/?api=1"
+        f"&origin={origin}&destination={destination}&travelmode=driving"
+    )
+    if waypoints:
+        url += f"&waypoints={waypoints}"
+    return url
 
 
 def _fmt_drive_time(minutes):
@@ -58,12 +93,20 @@ def _drive(from_name, km, minutes):
     }
 
 
-def _total_drive(legs):
-    """Summerar alla "drive"-poster i en plan till en total km/tid."""
+def _total_drive(legs, departure_transfer=None):
+    """
+    Summerar alla "drive"-poster i en plan till en total km/tid, plus
+    sista dagens transfer tillbaka till flygplatsen (om angiven) så
+    totalen stämmer med ALL körning under resan, inte bara mellan
+    övernattningarna.
+    """
     total_km = sum(leg["drive"]["km"] for leg in legs if leg.get("drive"))
     total_minutes = sum(
         leg["drive"]["minutes"] for leg in legs if leg.get("drive")
     )
+    if departure_transfer:
+        total_km += departure_transfer["km"]
+        total_minutes += departure_transfer["minutes"]
     return {
         "km": total_km,
         "minutes": total_minutes,
@@ -71,16 +114,43 @@ def _total_drive(legs):
     }
 
 
+# Milano-etappen är likadan i alla fyra planer (sista övernattningen,
+# 3-5 augusti), så vi bygger den en gång och återanvänder.
+_MILANO_ADDRESS = "NH Milano Touring, Via Ugo Tarchetti 2, 20121 Milano, Italy"
+
+
+def _milano_leg(from_name, km, minutes):
+    return {
+        "name": "Milano",
+        "nights": "2 nätter, 3–5 augusti",
+        "hotel": "NH Milano Touring (4★, gångavstånd till centrum, frukost)",
+        "price": "ca 1 900–2 500 kr/natt",
+        "address": _MILANO_ADDRESS,
+        "maps_query": _maps_link(_MILANO_ADDRESS),
+        "drive": _drive(from_name, km, minutes),
+        "highlights": [
+            "Duomo di Milano + takterrassen med utsikt",
+            "Galleria Vittorio Emanuele II",
+            "Glass nära Piazza del Duomo",
+        ],
+    }
+
+
+# Sista dagen (5 augusti): kör tillbaka från Milano till Bergamo
+# flygplats, lämna hyrbilen och flyg hem. Samma för alla fyra planer.
+_DEPARTURE_TRANSFER = _drive("Milano", 50, 45)
+
+
 PLANS = [
     {
         "id": "plan-a",
         "title": "A. Lugn & solig",
-        "subtitle": "3 etapper – max strand & avslappning, inga berg, ingen storstad. Perfekt om Viana får bestämma.",
+        "subtitle": "3 etapper – max strand & avslappning, inga berg, kort stadsstopp sista kvällen. Perfekt om Viana får bestämma.",
         "summary": (
-            "Den mest avslappnade rutten: ingen storstad, inga berg – bara "
-            "vandring längs kustleden och bad i Cinque Terre, sol och bad "
-            "längs Franska Rivieran, och ett kort, lugnt stopp i Bergamos "
-            "gamla stad innan hemflyget. Minst körning av alla fyra planer."
+            "Den mest avslappnade rutten: inga berg – bara vandring längs "
+            "kustleden och bad i Cinque Terre, sol och bad längs Franska "
+            "Rivieran, och ett kort stopp i Milano sista kvällen innan "
+            "hemflyget. Minst körning av alla fyra planer."
         ),
         "legs": [
             {
@@ -88,7 +158,8 @@ PLANS = [
                 "nights": "9 nätter, 16–25 juli",
                 "hotel": "NH La Spezia (4★, vid hamnen, frukost)",
                 "price": "ca 1 700–2 400 kr/natt",
-                "maps_query": _maps_link("NH+La+Spezia%2C+Via+XX+Settembre+2%2C+19124+La+Spezia%2C+Italy"),
+                "address": "NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy",
+                "maps_query": _maps_link("NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy"),
                 "drive": _drive("Bergamo flygplats", 225, 160),
                 "highlights": [
                     "Vandra Sentiero Azzurro (kustleden) mellan byarna",
@@ -102,7 +173,8 @@ PLANS = [
                 "nights": "9 nätter, 25 juli–3 augusti",
                 "hotel": "Albert 1er Hotel Nice (4★, 2 min till stranden, triple-rum)",
                 "price": "ca 1 800–2 400 kr/natt",
-                "maps_query": _maps_link("Albert+1er+Hotel+Nice%2C+4+Avenue+Max+Gallo%2C+06000+Nice%2C+France"),
+                "address": "Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France",
+                "maps_query": _maps_link("Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France"),
                 "drive": _drive("Cinque Terre / Ligurien", 230, 165),
                 "highlights": [
                     "Bad vid Castel Plage eller Promenade des Anglais",
@@ -111,30 +183,19 @@ PLANS = [
                     "Glass på gamla stans gränder",
                 ],
             },
-            {
-                "name": "Bergamo",
-                "nights": "2 nätter, 3–5 augusti",
-                "hotel": "Hotel Excelsior San Marco (4★, centralt, frukost)",
-                "price": "ca 1 700–2 300 kr/natt",
-                "maps_query": _maps_link("Hotel+Excelsior+San+Marco%2C+Piazzale+della+Repubblica+6%2C+24122+Bergamo%2C+Italy"),
-                "drive": _drive("Nice & Franska Rivieran", 390, 255),
-                "highlights": [
-                    "Åk linbanan upp till Città Alta (gamla stan)",
-                    "Utsikt från stadsmurarna",
-                    "Glass på Piazza Vecchia",
-                ],
-            },
+            _milano_leg("Nice & Franska Rivieran", 340, 225),
         ],
     },
     {
         "id": "plan-b",
         "title": "B. Balanserad klassiker",
-        "subtitle": "4 etapper – en skvätt Comosjön, sen gott om strandtid i Ligurien och Nice.",
+        "subtitle": "4 etapper – en skvätt Comosjön, sen gott om strandtid i Ligurien och Nice, kort stadsstopp sista kvällen.",
         "summary": (
             "Samma lugna kustkänsla som "
             "“A” men med en kort, vacker inledning vid Comosjön "
             "innan stranden tar vid. Plus en dagsutflykt till Saint-Tropez "
-            "inbakad i Nice-etappen, utan att lägga till ett eget hotellstopp."
+            "inbakad i Nice-etappen, och ett kort stopp i Milano sista "
+            "kvällen innan hemflyget."
         ),
         "legs": [
             {
@@ -142,7 +203,8 @@ PLANS = [
                 "nights": "2 nätter, 16–18 juli",
                 "hotel": "Hotel Barchetta Excelsior (4★, vid sjön, frukost)",
                 "price": "ca 2 200–2 600 kr/natt",
-                "maps_query": _maps_link("Hotel+Barchetta+Excelsior%2C+Piazza+Cavour+1%2C+22100+Como%2C+Italy"),
+                "address": "Hotel Barchetta Excelsior, Piazza Cavour 1, 22100 Como, Italy",
+                "maps_query": _maps_link("Hotel Barchetta Excelsior, Piazza Cavour 1, 22100 Como, Italy"),
                 "drive": _drive("Bergamo flygplats", 50, 50),
                 "highlights": [
                     "Båttur på Comosjön",
@@ -156,7 +218,8 @@ PLANS = [
                 "nights": "7 nätter, 18–25 juli",
                 "hotel": "NH La Spezia (4★, vid hamnen, frukost)",
                 "price": "ca 1 700–2 400 kr/natt",
-                "maps_query": _maps_link("NH+La+Spezia%2C+Via+XX+Settembre+2%2C+19124+La+Spezia%2C+Italy"),
+                "address": "NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy",
+                "maps_query": _maps_link("NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy"),
                 "drive": _drive("Comosjön", 185, 130),
                 "highlights": [
                     "Vandra Sentiero Azzurro (kustleden) mellan byarna",
@@ -170,7 +233,8 @@ PLANS = [
                 "nights": "9 nätter, 25 juli–3 augusti",
                 "hotel": "Albert 1er Hotel Nice (4★, 2 min till stranden, triple-rum)",
                 "price": "ca 1 800–2 400 kr/natt",
-                "maps_query": _maps_link("Albert+1er+Hotel+Nice%2C+4+Avenue+Max+Gallo%2C+06000+Nice%2C+France"),
+                "address": "Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France",
+                "maps_query": _maps_link("Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France"),
                 "drive": _drive("Cinque Terre / Ligurien", 230, 165),
                 "highlights": [
                     "Bad vid Castel Plage eller Promenade des Anglais",
@@ -179,30 +243,19 @@ PLANS = [
                     "Glass på gamla stans gränder",
                 ],
             },
-            {
-                "name": "Bergamo",
-                "nights": "2 nätter, 3–5 augusti",
-                "hotel": "Hotel Excelsior San Marco (4★, centralt, frukost)",
-                "price": "ca 1 700–2 300 kr/natt",
-                "maps_query": _maps_link("Hotel+Excelsior+San+Marco%2C+Piazzale+della+Repubblica+6%2C+24122+Bergamo%2C+Italy"),
-                "drive": _drive("Nice & Franska Rivieran", 390, 255),
-                "highlights": [
-                    "Åk linbanan upp till Città Alta (gamla stan)",
-                    "Utsikt från stadsmurarna",
-                    "Glass på Piazza Vecchia",
-                ],
-            },
+            _milano_leg("Nice & Franska Rivieran", 340, 225),
         ],
     },
     {
         "id": "plan-c",
         "title": "C. Lite mer äventyr",
-        "subtitle": "5 etapper – samma strandtid som klassikern, men med ett extra stopp i Alperna.",
+        "subtitle": "5 etapper – samma strandtid som klassikern, men med ett extra stopp i Alperna och kort stadsstopp sista kvällen.",
         "summary": (
             "Lika mycket strandtid i Ligurien och Nice som de andra "
             "planerna, men med ett eget stopp i Saint-Tropez och en "
-            "svalkande avstickare till Courmayeur i Alperna innan "
-            "hemresan – mer omväxling, men också mer körning."
+            "svalkande avstickare till Courmayeur i Alperna, innan ett "
+            "kort stopp i Milano sista kvällen – mer omväxling, men också "
+            "mer körning."
         ),
         "legs": [
             {
@@ -210,7 +263,8 @@ PLANS = [
                 "nights": "6 nätter, 16–22 juli",
                 "hotel": "NH La Spezia (4★, vid hamnen, frukost)",
                 "price": "ca 1 700–2 400 kr/natt",
-                "maps_query": _maps_link("NH+La+Spezia%2C+Via+XX+Settembre+2%2C+19124+La+Spezia%2C+Italy"),
+                "address": "NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy",
+                "maps_query": _maps_link("NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy"),
                 "drive": _drive("Bergamo flygplats", 225, 160),
                 "highlights": [
                     "Vandra Sentiero Azzurro (kustleden) mellan byarna",
@@ -224,7 +278,8 @@ PLANS = [
                 "nights": "7 nätter, 22–29 juli",
                 "hotel": "Albert 1er Hotel Nice (4★, 2 min till stranden, triple-rum)",
                 "price": "ca 1 800–2 400 kr/natt",
-                "maps_query": _maps_link("Albert+1er+Hotel+Nice%2C+4+Avenue+Max+Gallo%2C+06000+Nice%2C+France"),
+                "address": "Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France",
+                "maps_query": _maps_link("Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France"),
                 "drive": _drive("Cinque Terre / Ligurien", 230, 165),
                 "highlights": [
                     "Bad vid Castel Plage eller Promenade des Anglais",
@@ -238,7 +293,8 @@ PLANS = [
                 "nights": "2 nätter, 29–31 juli",
                 "hotel": "Best Western Premier Montfleuri (4★, vid havet, familjerum)",
                 "price": "ca 2 000–2 700 kr/natt",
-                "maps_query": _maps_link("Best+Western+Premier+Montfleuri%2C+3+Avenue+Montfleuri%2C+83120+Sainte-Maxime%2C+France"),
+                "address": "Best Western Premier Montfleuri, 3 Avenue Montfleuri, 83120 Sainte-Maxime, France",
+                "maps_query": _maps_link("Best Western Premier Montfleuri, 3 Avenue Montfleuri, 83120 Sainte-Maxime, France"),
                 "drive": _drive("Nice & Franska Rivieran", 110, 90),
                 "highlights": [
                     "Bad på Pampelonnestranden",
@@ -251,7 +307,8 @@ PLANS = [
                 "nights": "3 nätter, 31 juli–3 augusti",
                 "hotel": "Hotel Berthod (4★, mitt i centrum, frukost)",
                 "price": "ca 2 700–3 100 kr/natt",
-                "maps_query": _maps_link("Hotel+Berthod%2C+Via+Mario+Puchoz+11%2C+11013+Courmayeur%2C+Italy"),
+                "address": "Hotel Berthod, Via Mario Puchoz 11, 11013 Courmayeur, Italy",
+                "maps_query": _maps_link("Hotel Berthod, Via Mario Puchoz 11, 11013 Courmayeur, Italy"),
                 "drive": _drive("Saint-Tropez / Provence", 330, 225),
                 "highlights": [
                     "Skyway Monte Bianco – linbana med utsikt över Mont Blanc",
@@ -259,30 +316,19 @@ PLANS = [
                     "Glass i centrum av Courmayeur",
                 ],
             },
-            {
-                "name": "Bergamo",
-                "nights": "2 nätter, 3–5 augusti",
-                "hotel": "Hotel Excelsior San Marco (4★, centralt, frukost)",
-                "price": "ca 1 700–2 300 kr/natt",
-                "maps_query": _maps_link("Hotel+Excelsior+San+Marco%2C+Piazzale+della+Repubblica+6%2C+24122+Bergamo%2C+Italy"),
-                "drive": _drive("Courmayeur / Alperna", 165, 130),
-                "highlights": [
-                    "Åk linbanan upp till Città Alta (gamla stan)",
-                    "Utsikt från stadsmurarna",
-                    "Glass på Piazza Vecchia",
-                ],
-            },
+            _milano_leg("Courmayeur / Alperna", 160, 115),
         ],
     },
     {
         "id": "plan-d",
         "title": "D. Stora turen",
-        "subtitle": "6 etapper – mest variation: sjö, strand, storstad, ytterligare strand och berg.",
+        "subtitle": "6 etapper – mest variation: sjö, strand, storstad, ytterligare strand, berg och kort stadsstopp sista kvällen.",
         "summary": (
-            "Allt på en resa: Comosjön, Cinque Terre, Nice, Saint-Tropez "
-            "och Courmayeur i Alperna – mest omväxling av alla planer, men "
-            "också mest körning (ca 13 timmar totalt). Bäst om familjen "
-            "gillar att se mycket olika och inte är rädd för bilkörning."
+            "Allt på en resa: Comosjön, Cinque Terre, Nice, Saint-Tropez, "
+            "Courmayeur i Alperna och ett kort stopp i Milano sista "
+            "kvällen – mest omväxling av alla planer, men också mest "
+            "körning (ca 14 timmar totalt). Bäst om familjen gillar att "
+            "se mycket olika och inte är rädd för bilkörning."
         ),
         "legs": [
             {
@@ -290,7 +336,8 @@ PLANS = [
                 "nights": "2 nätter, 16–18 juli",
                 "hotel": "Hotel Barchetta Excelsior (4★, vid sjön, frukost)",
                 "price": "ca 2 200–2 600 kr/natt",
-                "maps_query": _maps_link("Hotel+Barchetta+Excelsior%2C+Piazza+Cavour+1%2C+22100+Como%2C+Italy"),
+                "address": "Hotel Barchetta Excelsior, Piazza Cavour 1, 22100 Como, Italy",
+                "maps_query": _maps_link("Hotel Barchetta Excelsior, Piazza Cavour 1, 22100 Como, Italy"),
                 "drive": _drive("Bergamo flygplats", 50, 50),
                 "highlights": [
                     "Båttur på Comosjön",
@@ -304,7 +351,8 @@ PLANS = [
                 "nights": "5 nätter, 18–23 juli",
                 "hotel": "NH La Spezia (4★, vid hamnen, frukost)",
                 "price": "ca 1 700–2 400 kr/natt",
-                "maps_query": _maps_link("NH+La+Spezia%2C+Via+XX+Settembre+2%2C+19124+La+Spezia%2C+Italy"),
+                "address": "NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy",
+                "maps_query": _maps_link("NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy"),
                 "drive": _drive("Comosjön", 185, 130),
                 "highlights": [
                     "Vandra Sentiero Azzurro (kustleden) mellan byarna",
@@ -318,7 +366,8 @@ PLANS = [
                 "nights": "6 nätter, 23–29 juli",
                 "hotel": "Albert 1er Hotel Nice (4★, 2 min till stranden, triple-rum)",
                 "price": "ca 1 800–2 400 kr/natt",
-                "maps_query": _maps_link("Albert+1er+Hotel+Nice%2C+4+Avenue+Max+Gallo%2C+06000+Nice%2C+France"),
+                "address": "Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France",
+                "maps_query": _maps_link("Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France"),
                 "drive": _drive("Cinque Terre / Ligurien", 230, 165),
                 "highlights": [
                     "Bad vid Castel Plage eller Promenade des Anglais",
@@ -332,7 +381,8 @@ PLANS = [
                 "nights": "2 nätter, 29–31 juli",
                 "hotel": "Best Western Premier Montfleuri (4★, vid havet, familjerum)",
                 "price": "ca 2 000–2 700 kr/natt",
-                "maps_query": _maps_link("Best+Western+Premier+Montfleuri%2C+3+Avenue+Montfleuri%2C+83120+Sainte-Maxime%2C+France"),
+                "address": "Best Western Premier Montfleuri, 3 Avenue Montfleuri, 83120 Sainte-Maxime, France",
+                "maps_query": _maps_link("Best Western Premier Montfleuri, 3 Avenue Montfleuri, 83120 Sainte-Maxime, France"),
                 "drive": _drive("Nice & Franska Rivieran", 110, 90),
                 "highlights": [
                     "Bad på Pampelonnestranden",
@@ -345,7 +395,8 @@ PLANS = [
                 "nights": "3 nätter, 31 juli–3 augusti",
                 "hotel": "Hotel Berthod (4★, mitt i centrum, frukost)",
                 "price": "ca 2 700–3 100 kr/natt",
-                "maps_query": _maps_link("Hotel+Berthod%2C+Via+Mario+Puchoz+11%2C+11013+Courmayeur%2C+Italy"),
+                "address": "Hotel Berthod, Via Mario Puchoz 11, 11013 Courmayeur, Italy",
+                "maps_query": _maps_link("Hotel Berthod, Via Mario Puchoz 11, 11013 Courmayeur, Italy"),
                 "drive": _drive("Saint-Tropez / Provence", 330, 225),
                 "highlights": [
                     "Skyway Monte Bianco – linbana med utsikt över Mont Blanc",
@@ -353,27 +404,23 @@ PLANS = [
                     "Glass i centrum av Courmayeur",
                 ],
             },
-            {
-                "name": "Bergamo",
-                "nights": "2 nätter, 3–5 augusti",
-                "hotel": "Hotel Excelsior San Marco (4★, centralt, frukost)",
-                "price": "ca 1 700–2 300 kr/natt",
-                "maps_query": _maps_link("Hotel+Excelsior+San+Marco%2C+Piazzale+della+Repubblica+6%2C+24122+Bergamo%2C+Italy"),
-                "drive": _drive("Courmayeur / Alperna", 165, 130),
-                "highlights": [
-                    "Åk linbanan upp till Città Alta (gamla stan)",
-                    "Utsikt från stadsmurarna",
-                    "Glass på Piazza Vecchia",
-                ],
-            },
+            _milano_leg("Courmayeur / Alperna", 160, 115),
         ],
     },
 ]
 
-# Lägg på "total_drive" (summerad körsträcka/-tid) på varje plan, så
-# frontend inte behöver räkna ihop det själv.
+# Lägg på "total_drive" (summerad körsträcka/-tid, inkl. sista dagens
+# transfer Milano -> flygplats), "departure_transfer" samt "route_map"
+# (en Google Maps-länk med hela bilrutten i ordning) på varje plan, så
+# frontend inte behöver räkna/bygga ihop det själv.
 for _plan in PLANS:
-    _plan["total_drive"] = _total_drive(_plan["legs"])
+    _plan["departure_transfer"] = _DEPARTURE_TRANSFER
+    _plan["total_drive"] = _total_drive(_plan["legs"], _DEPARTURE_TRANSFER)
+    _plan["route_map"] = _route_map_link(
+        [_BGY_AIRPORT_ADDRESS]
+        + [leg["address"] for leg in _plan["legs"]]
+        + [_BGY_AIRPORT_ADDRESS]
+    )
 
 
 def get_plans_with_lat_lon():
