@@ -153,8 +153,18 @@ function renderPlanCard(plan) {
   card.id = planCardId(plan);
 
   const rows = plan.legs
-    .map(
-      (leg) => `
+    .map((leg) => {
+      // "drive" = körsträcka/körtid FRÅN föregående stopp (se plans.py).
+      // Saknas den (borde aldrig hända, men skydda ändå) visas raden
+      // helt enkelt inte.
+      const driveLine = leg.drive
+        ? `🚗 ${leg.drive.km} km (${leg.drive.time}) från ${leg.drive.from}`
+        : "";
+      const highlightsLine = (leg.highlights || []).length
+        ? `💡 ${leg.highlights.join(" · ")}`
+        : "";
+
+      return `
         <tr>
           <td>
             <strong>${leg.name}</strong><br>
@@ -164,9 +174,22 @@ function renderPlanCard(plan) {
           <td>${leg.price}</td>
           <td><a href="${leg.maps_query}" target="_blank" rel="noopener">Karta ↗</a></td>
         </tr>
-      `
-    )
+        <tr class="plan-info-row">
+          <td colspan="4">
+            ${driveLine ? `<div class="plan-drive">${driveLine}</div>` : ""}
+            ${highlightsLine ? `<div class="plan-highlights">${highlightsLine}</div>` : ""}
+          </td>
+        </tr>
+      `;
+    })
     .join("");
+
+  // Total körsträcka/-tid för HELA planen (summerad i plans.py), så man
+  // kan jämföra "hur mycket bilkörning" planerna innebär utan att räkna
+  // ihop etapperna själv.
+  const totalDriveLine = plan.total_drive
+    ? `🚗 Totalt under resan: ca ${plan.total_drive.km} km körning, ${plan.total_drive.time}`
+    : "";
 
   card.innerHTML = `
     <div class="plan-card-header">
@@ -184,6 +207,15 @@ function renderPlanCard(plan) {
       </thead>
       <tbody>${rows}</tbody>
     </table>
+    ${totalDriveLine ? `<p class="plan-total-drive">${totalDriveLine}</p>` : ""}
+    ${
+      plan.summary
+        ? `<div class="plan-summary">
+            <strong>✨ Vad ni kan göra</strong>
+            <p>${plan.summary}</p>
+          </div>`
+        : ""
+    }
     <div class="vote-row">
       <button class="vote-btn up">👍 <span class="up-count">${plan.votes.up}</span></button>
       <button class="vote-btn down">👎 <span class="down-count">${plan.votes.down}</span></button>

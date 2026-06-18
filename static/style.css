@@ -448,3 +448,49 @@ h3 {
   font-size: 0.75rem;
   color: #666;
 }
+
+/* Extra rad under varje etapp i tabellen: körsträcka/-tid hit samt
+   tips på vad man kan göra/besöka där. Egen bakgrund så den syns som
+   ett "tillägg" till etapp-raden ovanför, inte en ny etapp. */
+.plan-info-row td {
+  background: #e3f0ee;
+  padding: 0.35rem 0.4rem 0.5rem;
+  white-space: normal;
+}
+
+.plan-drive {
+  font-size: 0.78rem;
+  color: #2f5f59;
+  margin-bottom: 0.15rem;
+}
+
+.plan-highlights {
+  font-size: 0.78rem;
+  color: #555;
+}
+
+.plan-total-drive {
+  font-size: 0.82rem;
+  color: #2f5f59;
+  margin: -0.2rem 0 0.6rem;
+  font-weight: 600;
+}
+
+.plan-summary {
+  background: #f5fbfa;
+  border: 1px solid #d9ece9;
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  margin-bottom: 0.7rem;
+  font-size: 0.85rem;
+}
+
+.plan-summary strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.plan-summary p {
+  margin: 0;
+  color: #444;
+}
