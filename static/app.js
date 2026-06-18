@@ -163,6 +163,7 @@ function renderPlanCard(plan) {
       const highlightsLine = (leg.highlights || []).length
         ? `💡 ${leg.highlights.join(" · ")}`
         : "";
+      const parkingLine = leg.parking || "";
 
       return `
         <tr>
@@ -177,6 +178,7 @@ function renderPlanCard(plan) {
         <tr class="plan-info-row">
           <td colspan="4">
             ${driveLine ? `<div class="plan-drive">${driveLine}</div>` : ""}
+            ${parkingLine ? `<div class="plan-parking">${parkingLine}</div>` : ""}
             ${highlightsLine ? `<div class="plan-highlights">${highlightsLine}</div>` : ""}
           </td>
         </tr>
@@ -207,6 +209,18 @@ function renderPlanCard(plan) {
     ? `<a class="plan-route-map" href="${plan.route_map}" target="_blank" rel="noopener">🗺️ Se hela bilrutten på kartan ↗</a>`
     : "";
 
+  // Klickbara strandnamn (varje namn länkar direkt till Google Maps) –
+  // visas i sammanfattningen så man snabbt ser var man kan sola/bada på
+  // den här rutten utan att leta i etapp-tabellen.
+  const beachesLine = (plan.beaches || []).length
+    ? `<p class="plan-beaches">🏖️ Stränder: ${plan.beaches
+        .map(
+          (beach) =>
+            `<a href="${beach.maps_query}" target="_blank" rel="noopener">${beach.name}</a>`
+        )
+        .join(", ")}</p>`
+    : "";
+
   card.innerHTML = `
     <div class="plan-card-header">
       <strong>${plan.title}</strong>
@@ -231,6 +245,7 @@ function renderPlanCard(plan) {
         ? `<div class="plan-summary">
             <strong>✨ Vad ni kan göra</strong>
             <p>${plan.summary}</p>
+            ${beachesLine}
           </div>`
         : ""
     }

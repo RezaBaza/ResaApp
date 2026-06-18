@@ -515,6 +515,12 @@ h3 {
   color: #555;
 }
 
+.plan-parking {
+  font-size: 0.78rem;
+  color: #8a6d3b;
+  margin-bottom: 0.15rem;
+}
+
 .plan-total-drive {
   font-size: 0.82rem;
   color: #2f5f59;
@@ -563,4 +569,15 @@ h3 {
 .plan-summary p {
   margin: 0;
   color: #444;
+}
+
+.plan-beaches {
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  color: #444;
+}
+
+.plan-beaches a {
+  color: #2f6f4f;
+  text-decoration: underline;
 }

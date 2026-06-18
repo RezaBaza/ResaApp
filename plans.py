@@ -53,6 +53,15 @@ def _maps_link(address):
     return f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(address)}"
 
 
+def _beach(name, address):
+    """
+    En badstrand/strandpromenad man kan tipsa om i sammanfattningen, med
+    namnet som en klickbar Google Maps-länk (sökt fram via webben, se
+    research-anteckning i README/PR – inga koordinater gissade).
+    """
+    return {"name": name, "maps_query": _maps_link(address)}
+
+
 def _route_map_link(addresses):
     """
     Bygger EN Google Maps-länk (körvägsbeskrivning) som kedjar ihop flera
@@ -114,6 +123,27 @@ def _total_drive(legs, departure_transfer=None):
     }
 
 
+# Parkeringsinfo per hotell (sökt fram via webben – ingen av hotellen har
+# gratis parkering i egen lobby/garage, så bra att veta i förväg).
+_PARKING_LA_SPEZIA = "🅿️ Inget eget garage – betald utomhusparkering/valet ca 200 m bort, ca 12 €/dygn."
+_PARKING_NICE = "🅿️ Inget eget garage – närmaste parkeringshus (Sulzer/Corvesy) ca 5 min promenad, ca 25–32 €/dygn."
+_PARKING_COMO = "🅿️ Inget eget garage – t.ex. systerhotellet Palace 200 m bort, ca 18–24 €/dygn."
+_PARKING_SAINTE_MAXIME = "🅿️ Egen bevakad parkering på området (bokas i förväg), ca 18–25 €/dygn."
+_PARKING_COURMAYEUR = "🅿️ Gratis parkering vid infarten (ca 12 platser) eller bokningsbart garage, ca 20 €/dygn."
+_PARKING_MILANO = "🅿️ Inget eget garage – parkeringshus ca 200 m bort, ca 25 €/dygn (ingen förbokning behövs)."
+
+
+# Fina stränder för sol och bad, en lista per etapp-område. Namnen är
+# klickbara Google Maps-länkar i frontend (se "beaches" på varje plan
+# nedan) så man snabbt kan slå upp läget på kartan.
+_BEACH_MONTEROSSO = _beach("Monterosso al Mare", "Spiaggia di Monterosso al Mare, Italy")
+_BEACH_VERNAZZA = _beach("Vernazza", "Spiaggia di Vernazza, Italy")
+_BEACH_CASTEL_PLAGE = _beach("Castel Plage, Nice", "Castel Plage, Quai des Etats-Unis, 06300 Nice, France")
+_BEACH_PONCHETTES = _beach("Plage des Ponchettes, Nice", "Plage des Ponchettes, 06300 Nice, France")
+_BEACH_PAMPELONNE = _beach("Pampelonne, Saint-Tropez", "Plage de Pampelonne, 83350 Ramatuelle, France")
+_BEACH_VILLA_OLMO = _beach("Lido Villa Olmo, Como", "Lido di Villa Olmo, Via Cernobbio 2, 22100 Como, Italy")
+
+
 # Milano-etappen är likadan i alla fyra planer (sista övernattningen,
 # 3-5 augusti), så vi bygger den en gång och återanvänder.
 _MILANO_ADDRESS = "NH Milano Touring, Via Ugo Tarchetti 2, 20121 Milano, Italy"
@@ -125,6 +155,7 @@ def _milano_leg(from_name, km, minutes):
         "nights": "2 nätter, 3–5 augusti",
         "hotel": "NH Milano Touring (4★, gångavstånd till centrum, frukost)",
         "price": "ca 1 900–2 500 kr/natt",
+        "parking": _PARKING_MILANO,
         "address": _MILANO_ADDRESS,
         "maps_query": _maps_link(_MILANO_ADDRESS),
         "drive": _drive(from_name, km, minutes),
@@ -152,12 +183,14 @@ PLANS = [
             "Rivieran, och ett kort stopp i Milano sista kvällen innan "
             "hemflyget. Minst körning av alla fyra planer."
         ),
+        "beaches": [_BEACH_MONTEROSSO, _BEACH_VERNAZZA, _BEACH_CASTEL_PLAGE, _BEACH_PONCHETTES],
         "legs": [
             {
                 "name": "Cinque Terre / Ligurien",
                 "nights": "9 nätter, 16–25 juli",
                 "hotel": "NH La Spezia (4★, vid hamnen, frukost)",
                 "price": "ca 1 700–2 400 kr/natt",
+                "parking": _PARKING_LA_SPEZIA,
                 "address": "NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy",
                 "maps_query": _maps_link("NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy"),
                 "drive": _drive("Bergamo flygplats", 225, 160),
@@ -173,6 +206,7 @@ PLANS = [
                 "nights": "9 nätter, 25 juli–3 augusti",
                 "hotel": "Albert 1er Hotel Nice (4★, 2 min till stranden, triple-rum)",
                 "price": "ca 1 800–2 400 kr/natt",
+                "parking": _PARKING_NICE,
                 "address": "Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France",
                 "maps_query": _maps_link("Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France"),
                 "drive": _drive("Cinque Terre / Ligurien", 230, 165),
@@ -197,12 +231,14 @@ PLANS = [
             "inbakad i Nice-etappen, och ett kort stopp i Milano sista "
             "kvällen innan hemflyget."
         ),
+        "beaches": [_BEACH_VILLA_OLMO, _BEACH_MONTEROSSO, _BEACH_CASTEL_PLAGE, _BEACH_PAMPELONNE],
         "legs": [
             {
                 "name": "Comosjön",
                 "nights": "2 nätter, 16–18 juli",
                 "hotel": "Hotel Barchetta Excelsior (4★, vid sjön, frukost)",
                 "price": "ca 2 200–2 600 kr/natt",
+                "parking": _PARKING_COMO,
                 "address": "Hotel Barchetta Excelsior, Piazza Cavour 1, 22100 Como, Italy",
                 "maps_query": _maps_link("Hotel Barchetta Excelsior, Piazza Cavour 1, 22100 Como, Italy"),
                 "drive": _drive("Bergamo flygplats", 50, 50),
@@ -218,6 +254,7 @@ PLANS = [
                 "nights": "7 nätter, 18–25 juli",
                 "hotel": "NH La Spezia (4★, vid hamnen, frukost)",
                 "price": "ca 1 700–2 400 kr/natt",
+                "parking": _PARKING_LA_SPEZIA,
                 "address": "NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy",
                 "maps_query": _maps_link("NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy"),
                 "drive": _drive("Comosjön", 185, 130),
@@ -233,6 +270,7 @@ PLANS = [
                 "nights": "9 nätter, 25 juli–3 augusti",
                 "hotel": "Albert 1er Hotel Nice (4★, 2 min till stranden, triple-rum)",
                 "price": "ca 1 800–2 400 kr/natt",
+                "parking": _PARKING_NICE,
                 "address": "Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France",
                 "maps_query": _maps_link("Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France"),
                 "drive": _drive("Cinque Terre / Ligurien", 230, 165),
@@ -257,12 +295,14 @@ PLANS = [
             "kort stopp i Milano sista kvällen – mer omväxling, men också "
             "mer körning."
         ),
+        "beaches": [_BEACH_MONTEROSSO, _BEACH_CASTEL_PLAGE, _BEACH_PAMPELONNE],
         "legs": [
             {
                 "name": "Cinque Terre / Ligurien",
                 "nights": "6 nätter, 16–22 juli",
                 "hotel": "NH La Spezia (4★, vid hamnen, frukost)",
                 "price": "ca 1 700–2 400 kr/natt",
+                "parking": _PARKING_LA_SPEZIA,
                 "address": "NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy",
                 "maps_query": _maps_link("NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy"),
                 "drive": _drive("Bergamo flygplats", 225, 160),
@@ -278,6 +318,7 @@ PLANS = [
                 "nights": "7 nätter, 22–29 juli",
                 "hotel": "Albert 1er Hotel Nice (4★, 2 min till stranden, triple-rum)",
                 "price": "ca 1 800–2 400 kr/natt",
+                "parking": _PARKING_NICE,
                 "address": "Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France",
                 "maps_query": _maps_link("Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France"),
                 "drive": _drive("Cinque Terre / Ligurien", 230, 165),
@@ -293,6 +334,7 @@ PLANS = [
                 "nights": "2 nätter, 29–31 juli",
                 "hotel": "Best Western Premier Montfleuri (4★, vid havet, familjerum)",
                 "price": "ca 2 000–2 700 kr/natt",
+                "parking": _PARKING_SAINTE_MAXIME,
                 "address": "Best Western Premier Montfleuri, 3 Avenue Montfleuri, 83120 Sainte-Maxime, France",
                 "maps_query": _maps_link("Best Western Premier Montfleuri, 3 Avenue Montfleuri, 83120 Sainte-Maxime, France"),
                 "drive": _drive("Nice & Franska Rivieran", 110, 90),
@@ -307,6 +349,7 @@ PLANS = [
                 "nights": "3 nätter, 31 juli–3 augusti",
                 "hotel": "Hotel Berthod (4★, mitt i centrum, frukost)",
                 "price": "ca 2 700–3 100 kr/natt",
+                "parking": _PARKING_COURMAYEUR,
                 "address": "Hotel Berthod, Via Mario Puchoz 11, 11013 Courmayeur, Italy",
                 "maps_query": _maps_link("Hotel Berthod, Via Mario Puchoz 11, 11013 Courmayeur, Italy"),
                 "drive": _drive("Saint-Tropez / Provence", 330, 225),
@@ -330,12 +373,14 @@ PLANS = [
             "körning (ca 14 timmar totalt). Bäst om familjen gillar att "
             "se mycket olika och inte är rädd för bilkörning."
         ),
+        "beaches": [_BEACH_VILLA_OLMO, _BEACH_MONTEROSSO, _BEACH_CASTEL_PLAGE, _BEACH_PAMPELONNE],
         "legs": [
             {
                 "name": "Comosjön",
                 "nights": "2 nätter, 16–18 juli",
                 "hotel": "Hotel Barchetta Excelsior (4★, vid sjön, frukost)",
                 "price": "ca 2 200–2 600 kr/natt",
+                "parking": _PARKING_COMO,
                 "address": "Hotel Barchetta Excelsior, Piazza Cavour 1, 22100 Como, Italy",
                 "maps_query": _maps_link("Hotel Barchetta Excelsior, Piazza Cavour 1, 22100 Como, Italy"),
                 "drive": _drive("Bergamo flygplats", 50, 50),
@@ -351,6 +396,7 @@ PLANS = [
                 "nights": "5 nätter, 18–23 juli",
                 "hotel": "NH La Spezia (4★, vid hamnen, frukost)",
                 "price": "ca 1 700–2 400 kr/natt",
+                "parking": _PARKING_LA_SPEZIA,
                 "address": "NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy",
                 "maps_query": _maps_link("NH La Spezia, Via XX Settembre 2, 19124 La Spezia, Italy"),
                 "drive": _drive("Comosjön", 185, 130),
@@ -366,6 +412,7 @@ PLANS = [
                 "nights": "6 nätter, 23–29 juli",
                 "hotel": "Albert 1er Hotel Nice (4★, 2 min till stranden, triple-rum)",
                 "price": "ca 1 800–2 400 kr/natt",
+                "parking": _PARKING_NICE,
                 "address": "Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France",
                 "maps_query": _maps_link("Albert 1er Hotel Nice, 4 Avenue Max Gallo, 06000 Nice, France"),
                 "drive": _drive("Cinque Terre / Ligurien", 230, 165),
@@ -381,6 +428,7 @@ PLANS = [
                 "nights": "2 nätter, 29–31 juli",
                 "hotel": "Best Western Premier Montfleuri (4★, vid havet, familjerum)",
                 "price": "ca 2 000–2 700 kr/natt",
+                "parking": _PARKING_SAINTE_MAXIME,
                 "address": "Best Western Premier Montfleuri, 3 Avenue Montfleuri, 83120 Sainte-Maxime, France",
                 "maps_query": _maps_link("Best Western Premier Montfleuri, 3 Avenue Montfleuri, 83120 Sainte-Maxime, France"),
                 "drive": _drive("Nice & Franska Rivieran", 110, 90),
@@ -395,6 +443,7 @@ PLANS = [
                 "nights": "3 nätter, 31 juli–3 augusti",
                 "hotel": "Hotel Berthod (4★, mitt i centrum, frukost)",
                 "price": "ca 2 700–3 100 kr/natt",
+                "parking": _PARKING_COURMAYEUR,
                 "address": "Hotel Berthod, Via Mario Puchoz 11, 11013 Courmayeur, Italy",
                 "maps_query": _maps_link("Hotel Berthod, Via Mario Puchoz 11, 11013 Courmayeur, Italy"),
                 "drive": _drive("Saint-Tropez / Provence", 330, 225),
