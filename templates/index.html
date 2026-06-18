@@ -80,6 +80,7 @@
   <nav class="tab-nav">
     <button class="tab-btn active" data-tab="tab-plans">🗺️ Reseplaner</button>
     <button class="tab-btn" data-tab="tab-nearby">📍 Hitta platser</button>
+    <button class="tab-btn" data-tab="tab-packing">🧳 Packlista</button>
   </nav>
 
   <section id="tab-plans" class="tab-section">
@@ -109,6 +110,22 @@
     <button id="find-btn">Hitta platser nära mig</button>
 
     <div id="results"></div>
+  </section>
+
+  <section id="tab-packing" class="tab-section hidden">
+    <h1>Packlista 🧳</h1>
+    <p class="packing-intro">
+      En delad lista – allt ni lägger till eller bockar av syns direkt
+      för hela familjen, ingen behöver fråga i gruppchatten om solkrämen
+      kom med.
+    </p>
+
+    <form id="packing-form" class="packing-form">
+      <input id="packing-input" type="text" placeholder="t.ex. Solkräm" autocomplete="off">
+      <button type="submit">Lägg till</button>
+    </form>
+
+    <ul id="packing-list" class="packing-list"></ul>
   </section>
 
   <script src="{{ url_for('static', filename='app.js') }}"></script>

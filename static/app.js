@@ -224,9 +224,10 @@ function renderPlanCard(plan) {
           <td>${leg.hotel}</td>
           <td>${leg.price}</td>
           <td><a href="${leg.maps_query}" target="_blank" rel="noopener">Karta ↗</a></td>
+          <td>${leg.booking ? `<a href="${leg.booking}" target="_blank" rel="noopener">Boka ↗</a>` : ""}</td>
         </tr>
         <tr class="plan-info-row">
-          <td colspan="4">
+          <td colspan="5">
             ${driveLine ? `<div class="plan-drive">${driveLine}</div>` : ""}
             ${parkingLine ? `<div class="plan-parking">${parkingLine}</div>` : ""}
             ${highlightsLine ? `<div class="plan-highlights">${highlightsLine}</div>` : ""}
@@ -271,6 +272,13 @@ function renderPlanCard(plan) {
         .join(", ")}</p>`
     : "";
 
+  // Grov totalkostnad (boende + uppskattad bensin) – räknad ut i plans.py
+  // utifrån nätter × pris/natt och total körsträcka. Ingen flygbiljett
+  // eller mat inräknat, bara det som faktiskt skiljer planerna åt.
+  const costLine = plan.cost_estimate
+    ? `<p class="plan-cost">💰 ${plan.cost_estimate.summary}</p>`
+    : "";
+
   // Korten visar alltid det viktigaste på en gång (titel, karta, total
   // körsträcka, röstning) – men etapptabellen och "vad ni kan göra" är
   // ofta det mesta att skrolla igenom, så det göms i en <details> som
@@ -292,6 +300,7 @@ function renderPlanCard(plan) {
             <th>Hotellförslag</th>
             <th>Pris</th>
             <th>Karta</th>
+            <th>Boka</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -302,6 +311,7 @@ function renderPlanCard(plan) {
               <strong>✨ Vad ni kan göra</strong>
               <p>${plan.summary}</p>
               ${beachesLine}
+              ${costLine}
             </div>`
           : ""
       }
@@ -690,3 +700,114 @@ async function sendVote(place, voteValue, card) {
   place.votes = votes;
   updateVoteUI(card, votes);
 }
+
+// ---------------------------------------------------------------------------
+// Packlista – delad checklista (se db.py: packing_items / app.py: /api/packing).
+// Laddas direkt vid sidladdning (precis som reseplanerna) eftersom den inte
+// behöver GPS-position, och uppdateras live för alla utan att sidan laddas om.
+// ---------------------------------------------------------------------------
+
+const packingForm = document.getElementById("packing-form");
+const packingInput = document.getElementById("packing-input");
+const packingListEl = document.getElementById("packing-list");
+
+loadPacking();
+
+async function loadPacking() {
+  const response = await fetch("/api/packing");
+  if (!response.ok) return;
+  const items = await response.json();
+  renderPacking(items);
+}
+
+function renderPacking(items) {
+  packingListEl.innerHTML = "";
+
+  if (items.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "packing-empty";
+    empty.textContent = "Listan är tom – lägg till första grejen ovan!";
+    packingListEl.appendChild(empty);
+    return;
+  }
+
+  // Obockade saker först (det som fortfarande behöver packas), sen det
+  // som redan är klart – annars drunknar det man faktiskt behöver göra
+  // längst ner i en lång lista av redan-packade-saker.
+  const sorted = [...items].sort((a, b) => Number(a.done) - Number(b.done));
+
+  for (const item of sorted) {
+    packingListEl.appendChild(renderPackingItem(item));
+  }
+}
+
+function renderPackingItem(item) {
+  const row = document.createElement("li");
+  row.className = "packing-item" + (item.done ? " packing-done" : "");
+
+  row.innerHTML = `
+    <label class="packing-label">
+      <input type="checkbox" ${item.done ? "checked" : ""}>
+      <span class="packing-text">${item.item}</span>
+    </label>
+    <span class="packing-added-by">tillagt av ${item.added_by}</span>
+    <button type="button" class="packing-delete" aria-label="Ta bort">✕</button>
+  `;
+
+  row.querySelector("input").addEventListener("change", () => togglePacking(item, row));
+  row.querySelector(".packing-delete").addEventListener("click", () => deletePacking(item, row));
+
+  return row;
+}
+
+async function togglePacking(item, row) {
+  const response = await fetch(`/api/packing/${item.id}/toggle`, { method: "POST" });
+  if (!response.ok) return;
+  const result = await response.json();
+  item.done = result.done;
+  row.classList.toggle("packing-done", item.done);
+}
+
+async function deletePacking(item, row) {
+  const response = await fetch(`/api/packing/${item.id}`, { method: "DELETE" });
+  if (!response.ok) return;
+  row.remove();
+  // Visa "listan är tom"-meddelandet om det var sista raden.
+  if (!packingListEl.querySelector(".packing-item")) {
+    renderPacking([]);
+  }
+}
+
+packingForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const person = personInput.value.trim();
+  if (!person) {
+    statusEl.textContent = "Skriv ditt namn först, så vi vet vem som lade till.";
+    return;
+  }
+
+  const text = packingInput.value.trim();
+  if (!text) return;
+
+  const response = await fetch("/api/packing", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ item: text, person }),
+  });
+
+  if (!response.ok) {
+    statusEl.textContent = "Kunde inte lägga till i packlistan.";
+    return;
+  }
+
+  const newItem = await response.json();
+  packingInput.value = "";
+
+  // Ta bort ett ev. "listan är tom"-meddelande innan vi lägger till den
+  // nya raden.
+  const empty = packingListEl.querySelector(".packing-empty");
+  if (empty) empty.remove();
+
+  packingListEl.appendChild(renderPackingItem(newItem));
+});

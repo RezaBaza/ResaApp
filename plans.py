@@ -36,6 +36,7 @@ ruttplanerare/API är inkopplad), avrundade till närmaste 5 km/5 min och
 markerade med "ca" – verklig tid beror på trafik, vägval och stopp.
 """
 
+import re
 import urllib.parse
 
 # Dummy-koordinat (Bergamo flygplats) – krävs av votes-tabellen men
@@ -51,6 +52,16 @@ _BGY_AIRPORT_ADDRESS = "Aeroporto di Bergamo Orio al Serio (BGY), Italy"
 def _maps_link(address):
     """Enkel Google Maps-sökning på EN adress (en hotellnål)."""
     return f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(address)}"
+
+
+def _booking_link(hotel_name):
+    """
+    En Booking.com-söklänk på hotellets namn, så man kan kolla
+    lediga datum/boka direkt istället för att själv googla upp hotellet.
+    Ingen API-nyckel behövs – det är bara en vanlig söklänk, samma som
+    att skriva namnet i Booking.coms sökruta.
+    """
+    return f"https://www.booking.com/searchresults.html?ss={urllib.parse.quote(hotel_name)}"
 
 
 def _beach(name, address):
@@ -90,6 +101,79 @@ def _fmt_drive_time(minutes):
     if mins == 0:
         return f"ca {hours} tim"
     return f"ca {hours} tim {mins} min"
+
+
+def _parse_price_range(price_text):
+    """
+    Plockar ut låg/hög kr/natt ur en text som "ca 1 700–2 400 kr/natt"
+    (siffror kan ha mellanslag som tusentalsavgränsare). Returnerar
+    (low, high) som heltal, eller None om texten inte matchar formatet
+    – då hoppar kostnadskalkylen bara över den etappen istället för att
+    krascha.
+    """
+    match = re.search(r"([\d\s]+)\s*[–-]\s*([\d\s]+)\s*kr", price_text)
+    if not match:
+        return None
+    low = int(match.group(1).replace(" ", "").replace("\xa0", ""))
+    high = int(match.group(2).replace(" ", "").replace("\xa0", ""))
+    return low, high
+
+
+def _parse_nights(nights_text):
+    """Plockar ut antal nätter ur t.ex. '9 nätter, 16–25 juli' -> 9."""
+    match = re.match(r"\s*(\d+)\s*nätter", nights_text)
+    return int(match.group(1)) if match else 0
+
+
+def _fmt_kr(amount):
+    """T.ex. 32000 -> '32 000 kr' (mellanslag som tusentalsavgränsare)."""
+    return f"{amount:,.0f}".replace(",", " ") + " kr"
+
+
+# Mycket grov bensinuppskattning: ca 7 liter/100 km (normal bensinbil) och
+# ett pris runt 22 kr/liter (ungefärligt snitt Italien/Frankrike omräknat
+# till kronor) -> ca 1,55 kr/km. Avrundas till närmaste 100 kr, och
+# markeras tydligt som en GROV uppskattning eftersom verklig förbrukning
+# och bensinpris varierar med bilmodell, växelkurs och var man tankar.
+_FUEL_KR_PER_KM = 1.55
+
+
+def _fuel_estimate_kr(total_km):
+    return round(total_km * _FUEL_KR_PER_KM / 100) * 100
+
+
+def _cost_estimate(legs, total_drive):
+    """
+    Summerar en GROV totalkostnad för planen: boende (nätter × pris/natt,
+    summerat över alla etapper) + en uppskattad bensinkostnad baserad på
+    total körsträcka. Inga flygbiljetter eller mat är inräknat – bara
+    boende + bensin, som är det som faktiskt skiljer planerna åt.
+    """
+    hotel_low = 0
+    hotel_high = 0
+    for leg in legs:
+        nights = _parse_nights(leg.get("nights", ""))
+        price_range = _parse_price_range(leg.get("price", ""))
+        if not nights or not price_range:
+            continue
+        low, high = price_range
+        hotel_low += nights * low
+        hotel_high += nights * high
+
+    fuel = _fuel_estimate_kr(total_drive["km"]) if total_drive else 0
+
+    return {
+        "hotel_low": hotel_low,
+        "hotel_high": hotel_high,
+        "fuel": fuel,
+        "total_low": hotel_low + fuel,
+        "total_high": hotel_high + fuel,
+        "summary": (
+            f"🏨 Boende ca {_fmt_kr(hotel_low)}–{_fmt_kr(hotel_high)} + "
+            f"⛽ bensin ca {_fmt_kr(fuel)} (grov uppskattning) = "
+            f"totalt ca {_fmt_kr(hotel_low + fuel)}–{_fmt_kr(hotel_high + fuel)}"
+        ),
+    }
 
 
 def _drive(from_name, km, minutes):
@@ -470,6 +554,9 @@ for _plan in PLANS:
         + [leg["address"] for leg in _plan["legs"]]
         + [_BGY_AIRPORT_ADDRESS]
     )
+    _plan["cost_estimate"] = _cost_estimate(_plan["legs"], _plan["total_drive"])
+    for _leg in _plan["legs"]:
+        _leg["booking"] = _booking_link(_leg["address"].split(",")[0])
 
 
 def get_plans_with_lat_lon():

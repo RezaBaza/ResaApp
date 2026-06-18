@@ -26,6 +26,7 @@ app = Flask(__name__)
 # skulle tabellen "votes" aldrig skapas i produktion och första rösten
 # skulle krascha med "no such table: votes".
 db.init_db()
+db.init_packing_table()
 
 
 def _distance_m(lat1, lon1, lat2, lon2):
@@ -166,6 +167,44 @@ def vote():
     # om hela listan.
     summary = db.get_vote_summary([payload["osm_id"]])
     return jsonify(summary[payload["osm_id"]])
+
+
+@app.route("/api/packing", methods=["GET"])
+def get_packing():
+    """Hämtar hela den delade packlistan."""
+    return jsonify(db.get_packing_items())
+
+
+@app.route("/api/packing", methods=["POST"])
+def add_packing():
+    """
+    Lägger till en ny rad i packlistan, t.ex:
+        {"item": "Solkräm", "person": "Sadna"}
+    """
+    payload = request.get_json(silent=True) or {}
+    item = (payload.get("item") or "").strip()
+    person = (payload.get("person") or "").strip()
+    if not item or not person:
+        return jsonify({"error": "item och person krävs"}), 400
+
+    new_id = db.add_packing_item(item, person)
+    return jsonify({"id": new_id, "item": item, "added_by": person, "done": False})
+
+
+@app.route("/api/packing/<int:item_id>/toggle", methods=["POST"])
+def toggle_packing(item_id):
+    """Bockar av/på en rad i packlistan."""
+    new_done = db.toggle_packing_item(item_id)
+    if new_done is None:
+        return jsonify({"error": "hittade ingen sådan rad"}), 404
+    return jsonify({"id": item_id, "done": new_done})
+
+
+@app.route("/api/packing/<int:item_id>", methods=["DELETE"])
+def delete_packing(item_id):
+    """Tar bort en rad ur packlistan."""
+    db.delete_packing_item(item_id)
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":

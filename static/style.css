@@ -497,6 +497,98 @@ h3 {
   flex: 1;
 }
 
+/* Packlista – delad checklista (se index.html: #tab-packing, app.js:
+   loadPacking/renderPacking). Samma korta intro-stil som .plans-intro. */
+.packing-intro {
+  font-size: 0.85rem;
+  color: #555;
+  margin-top: 0;
+}
+
+.packing-form {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+}
+
+.packing-form input[type="text"] {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.packing-form button {
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  background: #2f6f4f;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.packing-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.packing-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: white;
+  border: 1px solid #e2e2e2;
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+}
+
+.packing-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.packing-label input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+/* Avbockade saker tonas ner och får genomstruken text, så det är tydligt
+   vad som redan är klart utan att raden försvinner helt (man vill ofta
+   fortfarande SE att t.ex. "Pass" är ikryssat, inte bara att den är borta). */
+.packing-done .packing-text {
+  text-decoration: line-through;
+  color: #999;
+}
+
+.packing-added-by {
+  font-size: 0.72rem;
+  color: #aaa;
+  white-space: nowrap;
+}
+
+.packing-delete {
+  background: none;
+  border: none;
+  color: #c0392b;
+  font-size: 1rem;
+  padding: 0.2rem 0.3rem;
+  cursor: pointer;
+}
+
+.packing-empty {
+  font-size: 0.9rem;
+  color: #888;
+  text-align: center;
+  padding: 1rem 0;
+}
+
 .plan-leaderboard-score {
   font-size: 0.8rem;
   color: #555;
@@ -677,4 +769,11 @@ h3 {
 .plan-beaches a {
   color: #2f6f4f;
   text-decoration: underline;
+}
+
+.plan-cost {
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  color: #6b5a2e;
+  font-weight: 600;
 }

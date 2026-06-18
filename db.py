@@ -180,3 +180,85 @@ def remove_vote(osm_id, person):
     )
     conn.commit()
     conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Packlista – en DELAD att-göra-lista för packning. Alla i familjen ser
+# samma lista och samma avbockningar (till skillnad från t.ex. ett privat
+# minne i mobilen) – så ingen behöver fråga "tog du med solkräm?" i gruppchatten.
+# ---------------------------------------------------------------------------
+
+
+def init_packing_table():
+    """Skapar packlista-tabellen om den inte redan finns."""
+    conn = get_connection()
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS packing_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item TEXT NOT NULL,
+            added_by TEXT NOT NULL,
+            done INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    conn.commit()
+    conn.close()
+
+
+def add_packing_item(item, added_by):
+    """Lägger till en ny rad i packlistan, obockad."""
+    conn = get_connection()
+    cur = conn.execute(
+        "INSERT INTO packing_items (item, added_by, done) VALUES (?, ?, 0)",
+        (item, added_by),
+    )
+    conn.commit()
+    new_id = cur.lastrowid
+    conn.close()
+    return new_id
+
+
+def get_packing_items():
+    """Hämtar hela packlistan, äldst tillagd först."""
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id, item, added_by, done FROM packing_items ORDER BY id ASC"
+    ).fetchall()
+    conn.close()
+    return [
+        {
+            "id": row["id"],
+            "item": row["item"],
+            "added_by": row["added_by"],
+            "done": bool(row["done"]),
+        }
+        for row in rows
+    ]
+
+
+def toggle_packing_item(item_id):
+    """Växlar en rad mellan packad/inte packad och returnerar nya statusen."""
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT done FROM packing_items WHERE id = ?", (item_id,)
+    ).fetchone()
+    if row is None:
+        conn.close()
+        return None
+    new_done = 0 if row["done"] else 1
+    conn.execute(
+        "UPDATE packing_items SET done = ? WHERE id = ?", (new_done, item_id)
+    )
+    conn.commit()
+    conn.close()
+    return bool(new_done)
+
+
+def delete_packing_item(item_id):
+    """Tar bort en rad från packlistan helt."""
+    conn = get_connection()
+    conn.execute("DELETE FROM packing_items WHERE id = ?", (item_id,))
+    conn.commit()
+    conn.close()
