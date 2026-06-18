@@ -362,9 +362,13 @@ function renderTopVoted(places) {
     row.href = `#${placeCardId(place)}`;
     row.addEventListener("click", (event) => {
       event.preventDefault();
-      document
-        .getElementById(placeCardId(place))
-        .scrollIntoView({ behavior: "smooth", block: "center" });
+      const placeCard = document.getElementById(placeCardId(place));
+      // Kortet kan ligga inuti en hopfälld <details>-kategori (se
+      // renderPlaces) – måste fällas ut FÖRST, annars scrollar vi till
+      // ett osynligt kort.
+      const details = placeCard.closest("details");
+      if (details) details.open = true;
+      placeCard.scrollIntoView({ behavior: "smooth", block: "center" });
     });
     // CATEGORY_LABELS-texten innehåller redan en emoji (t.ex. "🍝
     // Restauranger") – vi visar bara den, inte hela ordet, så raden
@@ -427,9 +431,11 @@ function renderPlaces(places) {
     link.addEventListener("click", (event) => {
       event.preventDefault();
       if (!placesInCategory.length) return;
-      document
-        .getElementById(`cat-${category}`)
-        .scrollIntoView({ behavior: "smooth", block: "start" });
+      // Kategorin är en hopfälld <details> (se nedan) – fäll ut den
+      // innan vi scrollar dit, annars hoppar man till en tom rubrik.
+      const details = document.getElementById(`cat-${category}`);
+      details.open = true;
+      details.scrollIntoView({ behavior: "smooth", block: "start" });
     });
     nav.appendChild(link);
   }
@@ -439,9 +445,17 @@ function renderPlaces(places) {
     const placesInCategory = grouped[category];
     if (!placesInCategory || placesInCategory.length === 0) continue;
 
-    const section = document.createElement("section");
+    // <details>/<summary> ger oss en hopfälld kategori "på köpet" – man
+    // ser bara rubriken (+ antal) tills man klickar, då fälls ALLA
+    // platser i kategorin ut. Default hopfälld (ingen "open"-attribut),
+    // så man inte måste skrolla förbi 20 kort per kategori för att hitta
+    // den man vill se.
+    const section = document.createElement("details");
+    section.className = "category-details";
     section.id = `cat-${category}`;
-    section.innerHTML = `<h2>${CATEGORY_LABELS[category]}</h2>`;
+    const summary = document.createElement("summary");
+    summary.textContent = `${CATEGORY_LABELS[category]} (${placesInCategory.length})`;
+    section.appendChild(summary);
 
     // Visa bara de MAX_PER_CATEGORY (20) närmaste platserna i kategorin.
     const shown = placesInCategory.slice(0, MAX_PER_CATEGORY);

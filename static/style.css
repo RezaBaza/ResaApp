@@ -240,6 +240,52 @@ h3 {
   margin-bottom: 0.3rem;
 }
 
+/* Varje kategori i "Hitta platser" är en <details>-accordion (se
+   renderPlaces i app.js) – hopfälld som standard, man klickar på
+   rubriken för att fälla ut alla platser i kategorin. Ersätter den
+   gamla <h2>-rubriken, men ska se ungefär likadan ut. */
+.category-details {
+  margin-bottom: 0.4rem;
+}
+
+.category-details > summary {
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.6rem 1.6rem 0.6rem 0.2rem;
+  list-style: none;
+  position: relative;
+  border-bottom: 1px solid #e2e2e2;
+}
+
+/* Döljer webkit/Firefox's eget triangel-ikon, vi ritar en egen nedan
+   så pilen kan rotera mjukt när kategorin fälls ut. */
+.category-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.category-details > summary::after {
+  content: "▾";
+  position: absolute;
+  right: 0.3rem;
+  top: 0.6rem;
+  transition: transform 0.2s ease;
+  color: #2f6f4f;
+}
+
+.category-details[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.category-details[open] > summary {
+  border-bottom-color: #bfe0db;
+}
+
+/* Lite luft mellan rubriken och första kortet när kategorin är utfälld. */
+.category-details[open] > summary {
+  margin-bottom: 0.3rem;
+}
+
 /* Snabbnav FÖR mattyper inom restaurang-sektionen – en mindre, ljusare
    variant av .category-nav (inte sticky, eftersom den bara behövs en
    gång per sektion, inte hela tiden i toppen av skärmen). */
