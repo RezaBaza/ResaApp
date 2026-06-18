@@ -64,15 +64,22 @@
     </p>
   </section>
 
-  <h1>Vad finns nära oss? 📍</h1>
-
   <!-- Vem röstar? Sparas i mobilens egen lagring (localStorage) så man
-       inte behöver skriva namnet varje gång man öppnar sidan. -->
+       inte behöver skriva namnet varje gång man öppnar sidan. Ligger
+       HÖGT UPP (före reseplanerna) eftersom man behöver ha skrivit sitt
+       namn för att kunna rösta på en reseplan också, inte bara platser. -->
   <label for="person">Ditt namn:</label>
   <input id="person" type="text" placeholder="t.ex. Reza">
+  <p id="status"></p>
+
+  <!-- Reseplans-alternativen (se plans.py / app.js: loadPlans) – fyra
+       hela resrutter att rösta på, laddas direkt vid sidladdning eftersom
+       de inte behöver GPS-position. -->
+  <div id="plans"></div>
+
+  <h1>Vad finns nära oss? 📍</h1>
 
   <button id="find-btn">Hitta platser nära mig</button>
-  <p id="status"></p>
 
   <div id="results"></div>
 

@@ -78,12 +78,132 @@ const personInput = document.getElementById("person");
 const findBtn = document.getElementById("find-btn");
 const statusEl = document.getElementById("status");
 const resultsEl = document.getElementById("results");
+const plansEl = document.getElementById("plans");
 
 // Återanvänd sparat namn om man besökt sidan tidigare.
 personInput.value = localStorage.getItem("person") || "";
 personInput.addEventListener("input", () => {
   localStorage.setItem("person", personInput.value);
 });
+
+// Reseplans-alternativen (se plans.py) är statiska och behöver ingen
+// GPS-position – ladda dem direkt när sidan öppnas, så familjen kan
+// rösta på HELA resrutter utan att först trycka på "Hitta platser".
+loadPlans();
+
+async function loadPlans() {
+  const response = await fetch("/api/plans");
+  if (!response.ok) return;
+  const plans = await response.json();
+  renderPlans(plans);
+}
+
+function planCardId(plan) {
+  return `plan-${plan.id}`;
+}
+
+function renderPlans(plans) {
+  plansEl.innerHTML = "";
+
+  const heading = document.createElement("h2");
+  heading.textContent = "🗺️ Vilken reseplan gillar du bäst?";
+  plansEl.appendChild(heading);
+
+  const intro = document.createElement("p");
+  intro.className = "plans-intro";
+  intro.textContent =
+    "Samma flyg (Stockholm ↔ Bergamo, 16 juli–5 augusti) men olika sätt att dela upp de 20 nätterna. Rösta på den ni gillar mest!";
+  plansEl.appendChild(intro);
+
+  for (const plan of plans) {
+    plansEl.appendChild(renderPlanCard(plan));
+  }
+}
+
+function renderPlanCard(plan) {
+  const card = document.createElement("div");
+  card.className = "plan-card";
+  card.id = planCardId(plan);
+
+  const rows = plan.legs
+    .map(
+      (leg) => `
+        <tr>
+          <td>
+            <strong>${leg.name}</strong><br>
+            <span class="plan-nights">${leg.nights}</span>
+          </td>
+          <td>${leg.hotel}</td>
+          <td>${leg.price}</td>
+          <td><a href="${leg.maps_query}" target="_blank" rel="noopener">Karta ↗</a></td>
+        </tr>
+      `
+    )
+    .join("");
+
+  card.innerHTML = `
+    <div class="plan-card-header">
+      <strong>${plan.title}</strong>
+    </div>
+    <p class="plan-subtitle">${plan.subtitle}</p>
+    <table class="plan-table">
+      <thead>
+        <tr>
+          <th>Etapp</th>
+          <th>Hotellförslag</th>
+          <th>Pris</th>
+          <th>Karta</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="vote-row">
+      <button class="vote-btn up">👍 <span class="up-count">${plan.votes.up}</span></button>
+      <button class="vote-btn down">👎 <span class="down-count">${plan.votes.down}</span></button>
+    </div>
+    <div class="vote-names"></div>
+  `;
+
+  card.querySelector(".up").addEventListener("click", () => sendPlanVote(plan, 1, card));
+  card.querySelector(".down").addEventListener("click", () => sendPlanVote(plan, -1, card));
+
+  updateVoteUI(card, plan.votes);
+
+  return card;
+}
+
+async function sendPlanVote(plan, voteValue, card) {
+  const person = personInput.value.trim();
+  if (!person) {
+    statusEl.textContent = "Skriv ditt namn först, så vi vet vem som röstar.";
+    return;
+  }
+
+  const payload = {
+    osm_id: plan.id,
+    name: plan.title,
+    category: "reseplan",
+    lat: plan.lat,
+    lon: plan.lon,
+    person: person,
+    vote: voteValue,
+  };
+
+  const response = await fetch("/api/vote", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    statusEl.textContent = "Kunde inte spara rösten.";
+    return;
+  }
+
+  const votes = await response.json();
+  plan.votes = votes;
+  updateVoteUI(card, votes);
+}
 
 findBtn.addEventListener("click", () => {
   if (!personInput.value.trim()) {

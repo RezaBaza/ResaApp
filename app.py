@@ -15,6 +15,7 @@ from flask import Flask, jsonify, render_template, request
 
 import db
 import overpass
+import plans as plans_module
 
 app = Flask(__name__)
 
@@ -90,6 +91,36 @@ def nearby():
     places.sort(key=lambda p: p["distance_m"])
 
     return jsonify(places)
+
+
+@app.route("/api/plans")
+def get_plans():
+    """
+    Returnerar de fyra färdiga reseplans-ALTERNATIVEN (se plans.py) ihop
+    med hur många röster varje HEL PLAN redan fått. Vi återanvänder
+    samma votes-tabell/logik som platserna – en plan är "bara" en plats
+    med ett konstigt osm_id (t.ex. "plan-a") och en dummy-koordinat.
+    """
+    plan_list, lat, lon = plans_module.get_plans_with_lat_lon()
+
+    plan_ids = [p["id"] for p in plan_list]
+    votes = db.get_vote_summary(plan_ids)
+
+    result = []
+    for plan in plan_list:
+        result.append(
+            {
+                **plan,
+                "lat": lat,
+                "lon": lon,
+                "votes": votes.get(
+                    plan["id"],
+                    {"up": 0, "down": 0, "up_names": [], "down_names": []},
+                ),
+            }
+        )
+
+    return jsonify(result)
 
 
 @app.route("/api/vote", methods=["POST"])

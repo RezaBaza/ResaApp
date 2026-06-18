@@ -344,3 +344,69 @@ h3 {
   color: #555;
   white-space: nowrap;
 }
+
+/* Reseplans-alternativen – fyra HELA resrutter (3-6 etapper) man kan
+   rösta på, se plans.py och app.js (renderPlanCard). Blå/grön ton för
+   att skilja dem från guld ("Mest gillat") och vit (platskort). */
+.plans-intro {
+  font-size: 0.85rem;
+  color: #555;
+  margin-top: -0.3rem;
+}
+
+.plan-card {
+  background: #eef6f5;
+  border: 1px solid #bfe0db;
+  border-radius: 10px;
+  padding: 0.8rem;
+  margin-bottom: 0.9rem;
+}
+
+.plan-card-header {
+  font-size: 1.05rem;
+  margin-bottom: 0.2rem;
+}
+
+.plan-subtitle {
+  font-size: 0.85rem;
+  color: #4c6b66;
+  margin: 0 0 0.6rem;
+}
+
+/* Etapp-tabellen scrollar i sidled på smala skärmar istället för att
+   klämma ihop kolumnerna till oläsbarhet. */
+.plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  margin-bottom: 0.6rem;
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.plan-table thead,
+.plan-table tbody {
+  display: table;
+  width: 100%;
+}
+
+.plan-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  color: #555;
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid #bfe0db;
+}
+
+.plan-table td {
+  padding: 0.4rem;
+  border-bottom: 1px solid #d9ece9;
+  vertical-align: top;
+  white-space: normal;
+}
+
+.plan-nights {
+  font-size: 0.75rem;
+  color: #666;
+}
