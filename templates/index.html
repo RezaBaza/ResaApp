@@ -95,10 +95,10 @@
   <input id="person" type="text" placeholder="t.ex. Reza">
   <p id="status"></p>
 
-  <!-- Nedräkning till avresan (16 juli) / hemresan (5 augusti) – fylls
-       i av app.js (renderCountdown). Ligger ovanför flikarna eftersom
-       den är relevant oavsett vilken flik man tittar på. -->
-  <section id="countdown-banner" class="countdown-banner"></section>
+  <!-- Nyckeltal (KPI-kort): dagar kvar, uppskattad kostnad, körsträcka
+       och antal röster – fylls i av app.js (renderKpis). Ligger ovanför
+       flikarna eftersom det är relevant oavsett vilken flik man tittar på. -->
+  <section id="kpi-row" class="kpi-row"></section>
 
   <!-- "Mest poppis just nu" – visar den mest röstade reseplanen och
        (om man redan sökt fram platser) den mest röstade platsen.
@@ -161,8 +161,13 @@
     <p class="map-intro">
       Visar platserna ni senast sökte fram under "Hitta platser", med
       antal röster i pop-up-rutan. Sök fram platser i den fliken
-      först, så dyker de upp här.
+      först, så dyker de upp här. Välj en kategori nedan för att
+      slippa alla markörer på en gång.
     </p>
+    <!-- Filterknappar per kategori (byggs av app.js: renderMapCategoryFilter),
+         samma kategorier som under "Hitta platser". Default = Strand & bad,
+         annars blir kartan en enda klump av markörer. -->
+    <nav id="map-category-filter" class="map-category-filter"></nav>
     <div id="map" class="map-view"></div>
   </section>
 

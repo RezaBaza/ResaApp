@@ -123,6 +123,7 @@ function initTabs() {
       // annars blir kartan bara grå tills man råkar resiza fönstret.
       if (button.dataset.tab === "tab-map") {
         initMapIfNeeded();
+        renderMapCategoryFilter();
         requestAnimationFrame(() => {
           leafletMap.invalidateSize();
           renderMap();
@@ -160,27 +161,91 @@ themeToggleBtn.addEventListener("click", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Nedräkning till avresa/hemresa.
+// KPI-kort: dagar kvar, kostnad, körsträcka och antal röster. Visas som en
+// rad små "nyckeltal"-kort istället för en lång textbanner – lättare att
+// skumma. Kostnad/körsträcka hämtas från den reseplan som LIGGER I TOPP just
+// nu (samma rankningslogik som renderPopularityBanner/renderPlanLeaderboard);
+// finns inga röster än används första planen som ett preliminärt förslag.
 // ---------------------------------------------------------------------------
-function renderCountdown() {
-  const el = document.getElementById("countdown-banner");
+function formatKr(amount) {
+  return `${Math.round(amount).toLocaleString("sv-SE")} kr`;
+}
+
+function renderKpis() {
+  const el = document.getElementById("kpi-row");
   if (!el) return;
+
+  const cards = [];
 
   const today = new Date();
   const daysToDeparture = Math.ceil((TRIP_START - today) / 86400000);
   const daysToReturn = Math.ceil((TRIP_END - today) / 86400000);
 
-  let text;
+  let daysValue;
+  let daysLabel;
   if (daysToDeparture > 0) {
-    text = `🧳 ${daysToDeparture} ${daysToDeparture === 1 ? "dag" : "dagar"} kvar till avresan (16 juli)!`;
+    daysValue = daysToDeparture;
+    daysLabel = "dagar kvar till avresan";
   } else if (daysToReturn > 0) {
-    text = `✈️ Ni är på resa nu! ${daysToReturn} ${daysToReturn === 1 ? "dag" : "dagar"} kvar till hemresan (5 augusti).`;
+    daysValue = daysToReturn;
+    daysLabel = "dagar kvar till hemresan";
   } else {
-    text = `🏠 Resan är klar – hoppas det var fantastiskt!`;
+    daysValue = "🏠";
+    daysLabel = "resan är klar!";
   }
-  el.textContent = text;
+  cards.push(`
+    <div class="kpi-card">
+      <div class="kpi-icon">🧳</div>
+      <div class="kpi-value">${daysValue}</div>
+      <div class="kpi-label">${daysLabel}</div>
+    </div>
+  `);
+
+  if (currentPlans.length) {
+    const ranked = [...currentPlans].sort((a, b) => {
+      const scoreA = a.votes.up - a.votes.down;
+      const scoreB = b.votes.up - b.votes.down;
+      return scoreB - scoreA || b.votes.up - a.votes.up;
+    });
+    const top = ranked[0];
+    const hasVotes = top.votes.up > 0 || top.votes.down > 0;
+    const suffix = hasVotes ? "" : " (förslag)";
+
+    if (top.cost_estimate) {
+      cards.push(`
+        <div class="kpi-card">
+          <div class="kpi-icon">💰</div>
+          <div class="kpi-value">${formatKr(top.cost_estimate.total_low)}–${formatKr(top.cost_estimate.total_high)}</div>
+          <div class="kpi-label">uppskattad kostnad${suffix}</div>
+        </div>
+      `);
+    }
+
+    if (top.total_drive) {
+      cards.push(`
+        <div class="kpi-card">
+          <div class="kpi-icon">🚗</div>
+          <div class="kpi-value">${top.total_drive.km} km</div>
+          <div class="kpi-label">körsträcka${suffix}</div>
+        </div>
+      `);
+    }
+
+    const totalVotes =
+      currentPlans.reduce((sum, plan) => sum + plan.votes.up + plan.votes.down, 0) +
+      lastPlaces.reduce((sum, place) => sum + place.votes.up + place.votes.down, 0);
+    cards.push(`
+      <div class="kpi-card">
+        <div class="kpi-icon">🗳️</div>
+        <div class="kpi-value">${totalVotes}</div>
+        <div class="kpi-label">röster avgivna</div>
+      </div>
+    `);
+  }
+
+  el.innerHTML = cards.join("");
 }
-renderCountdown();
+renderKpis();
 
 // ---------------------------------------------------------------------------
 // "Mest poppis just nu" – kombinerar topplistan för reseplaner
@@ -244,16 +309,65 @@ function initMapIfNeeded() {
   leafletMap.setView([45.0, 9.0], 6);
 }
 
+// Vilken kategori kartan filtrerar på just nu. "alla" stänger av
+// filtreringen. Defaultar till "beach" enligt önskemål – annars dyker ALLA
+// kategorier upp samtidigt och kartan blir en enda klump av markörer (det
+// var precis det som hände innan detta filter fanns). Sparas i
+// localStorage så valet finns kvar nästa besök.
+let mapCategoryFilter = localStorage.getItem("mapCategory") || "beach";
+
+// Bygger filterknapparna ovanför kartan – samma kategorier (CATEGORY_LABELS)
+// och samma "pill med antal"-stil som .category-nav under "Hitta platser",
+// plus en extra "Alla"-knapp. Antalen räknas om varje gång (lastPlaces kan
+// ha ändrats av en ny sökning).
+function renderMapCategoryFilter() {
+  const nav = document.getElementById("map-category-filter");
+  if (!nav) return;
+
+  const counts = {};
+  for (const place of lastPlaces) {
+    counts[place.category] = (counts[place.category] || 0) + 1;
+  }
+
+  const allOption = { key: "alla", label: "🗺️ Alla", count: lastPlaces.length };
+  const categoryOptions = Object.keys(CATEGORY_LABELS).map((key) => ({
+    key,
+    label: CATEGORY_LABELS[key],
+    count: counts[key] || 0,
+  }));
+
+  nav.innerHTML = [allOption, ...categoryOptions]
+    .map(({ key, label, count }) => {
+      const active = key === mapCategoryFilter ? " active" : "";
+      return `<button type="button" class="map-filter-btn${active}" data-category="${key}">${label} (${count})</button>`;
+    })
+    .join("");
+
+  nav.querySelectorAll(".map-filter-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      mapCategoryFilter = btn.dataset.category;
+      localStorage.setItem("mapCategory", mapCategoryFilter);
+      renderMapCategoryFilter();
+      renderMap();
+    });
+  });
+}
+
 function renderMap() {
   if (!leafletMap || !markersLayer) return;
   markersLayer.clearLayers();
 
-  if (!lastPlaces.length) {
+  const places =
+    mapCategoryFilter === "alla"
+      ? lastPlaces
+      : lastPlaces.filter((place) => place.category === mapCategoryFilter);
+
+  if (!places.length) {
     return;
   }
 
   const bounds = [];
-  for (const place of lastPlaces) {
+  for (const place of places) {
     const marker = L.marker([place.lat, place.lon]).addTo(markersLayer);
     const commentsLine = place.comment_count
       ? `<br>💬 ${place.comment_count} kommentarer`
@@ -427,6 +541,7 @@ function renderPlans(plans) {
   }
 
   renderPopularityBanner();
+  renderKpis();
 }
 
 function renderPlanLeaderboard() {
@@ -642,6 +757,7 @@ async function sendPlanVote(plan, voteValue, card) {
   // och måste själv jämföra siffrorna i alla fyra korten för att veta.
   renderPlanLeaderboard();
   renderPopularityBanner();
+  renderKpis();
 }
 
 // Skriver ut/sparar en enskild reseplan som PDF via webbläsarens vanliga
@@ -731,9 +847,14 @@ async function loadPlaces(lat, lon) {
   lastPlaces = places;
   renderPlaces(sortPlacesList(places));
   renderPopularityBanner();
+  renderKpis();
   // Om man redan står på Karta-fliken när en ny sökning görs, uppdatera
-  // markörerna direkt istället för att vänta på nästa flik-byte.
-  if (leafletMap) renderMap();
+  // filterknapparna (antalen per kategori har ändrats) och markörerna
+  // direkt istället för att vänta på nästa flik-byte.
+  if (leafletMap) {
+    renderMapCategoryFilter();
+    renderMap();
+  }
 }
 
 // Senast hämtade platser från "Hitta platser" – används av sorteringen,

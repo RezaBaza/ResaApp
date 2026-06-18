@@ -959,18 +959,43 @@ h3 {
 }
 
 /* ---------------------------------------------------------------------
-   Nedräkning till avresa/hemresa (renderCountdown i app.js).
+   KPI-kort: dagar kvar, kostnad, körsträcka, antal röster
+   (renderKpis i app.js). Flex-rad som radbryts på smala skärmar – varje
+   kort är litet och kompakt, tänkt att skummas på en sekund.
    ------------------------------------------------------------------ */
-.countdown-banner {
+.kpi-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.kpi-card {
+  flex: 1 1 7rem;
   background: #eaf6f1;
   border: 1px solid #bfe0db;
   border-radius: 10px;
-  padding: 0.6rem 0.8rem;
-  margin-bottom: 0.6rem;
+  padding: 0.55rem 0.5rem;
   text-align: center;
-  font-size: 0.95rem;
-  font-weight: 600;
+}
+
+.kpi-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.kpi-value {
+  font-size: 1.15rem;
+  font-weight: 700;
   color: #2f6f4f;
+  margin-top: 0.15rem;
+  white-space: nowrap;
+}
+
+.kpi-label {
+  font-size: 0.7rem;
+  color: #5a7d70;
+  margin-top: 0.1rem;
 }
 
 /* ---------------------------------------------------------------------
@@ -1009,6 +1034,33 @@ select#sort-places {
   font-size: 0.85rem;
   color: #555;
   margin-top: 0;
+}
+
+/* Kategorifilter ovanför kartan – samma "pill"-känsla som
+   .category-nav/.packing-filter, men en egen klass eftersom den styr
+   ETT val (radio-liknande) snarare än att bara navigera/scrolla. */
+.map-category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.map-filter-btn {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.7rem;
+  background: white;
+  border: 1px solid #bfe0db;
+  border-radius: 999px;
+  color: #2f6f4f;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.map-filter-btn.active {
+  background: #2f6f4f;
+  color: white;
+  border-color: #2f6f4f;
 }
 
 .map-view {
@@ -1118,10 +1170,29 @@ body.dark-mode .tab-btn.active {
   color: white;
 }
 
-body.dark-mode .countdown-banner {
+body.dark-mode .kpi-card {
   background: #1e2f27;
   border-color: #3a5a4c;
+}
+
+body.dark-mode .kpi-value {
   color: #8fd9b8;
+}
+
+body.dark-mode .kpi-label {
+  color: #7fae9b;
+}
+
+body.dark-mode .map-filter-btn {
+  background: #242825;
+  border-color: #3a3f3c;
+  color: #8fd9b8;
+}
+
+body.dark-mode .map-filter-btn.active {
+  background: #3a8463;
+  border-color: #3a8463;
+  color: white;
 }
 
 body.dark-mode .popularity-banner {
@@ -1263,7 +1334,7 @@ body.dark-mode .packing-for-person {
   .vote-names,
   .comments-details,
   .plan-card-actions,
-  .countdown-banner,
+  .kpi-row,
   .popularity-banner,
   label[for="person"],
   #person,
