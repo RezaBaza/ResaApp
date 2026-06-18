@@ -129,7 +129,13 @@ function planCardId(plan) {
   return `plan-${plan.id}`;
 }
 
+// Sparar senaste /api/plans-svaret så vi kan bygga om resultattavlan
+// (renderPlanLeaderboard) efter varje röst, utan att hämta om hela listan
+// från servern – sendPlanVote uppdaterar redan plan.votes i denna array.
+let currentPlans = [];
+
 function renderPlans(plans) {
+  currentPlans = plans;
   plansEl.innerHTML = "";
 
   const heading = document.createElement("h2");
@@ -142,9 +148,53 @@ function renderPlans(plans) {
     "Samma flyg (Stockholm ↔ Bergamo, 16 juli–5 augusti) men olika sätt att dela upp de 20 nätterna. Rösta på den ni gillar mest!";
   plansEl.appendChild(intro);
 
+  // Resultattavla: visar ALLA fyra alternativ direkt, rankade efter poäng
+  // (👍 minus 👎) – det är HÄR man tydligt ser "vilket alternativ vinner"
+  // istället för att behöva räkna ihop antalet röster i varje kort själv.
+  const leaderboard = document.createElement("div");
+  leaderboard.className = "plan-leaderboard";
+  leaderboard.id = "plan-leaderboard";
+  plansEl.appendChild(leaderboard);
+  renderPlanLeaderboard();
+
   for (const plan of plans) {
     plansEl.appendChild(renderPlanCard(plan));
   }
+}
+
+function renderPlanLeaderboard() {
+  const leaderboardEl = document.getElementById("plan-leaderboard");
+  if (!leaderboardEl) return;
+
+  const ranked = [...currentPlans].sort((a, b) => {
+    const scoreA = a.votes.up - a.votes.down;
+    const scoreB = b.votes.up - b.votes.down;
+    return scoreB - scoreA || b.votes.up - a.votes.up;
+  });
+
+  const rowsHtml = ranked
+    .map((plan, index) => {
+      const score = plan.votes.up - plan.votes.down;
+      const leaderClass = index === 0 && score > 0 ? " plan-leaderboard-leader" : "";
+      return `
+        <a href="#${planCardId(plan)}" class="plan-leaderboard-row${leaderClass}">
+          <span class="plan-leaderboard-rank">${index + 1}.</span>
+          <span class="plan-leaderboard-title">${plan.title}</span>
+          <span class="plan-leaderboard-score">👍 ${plan.votes.up} 👎 ${plan.votes.down} (${score >= 0 ? "+" : ""}${score})</span>
+        </a>
+      `;
+    })
+    .join("");
+
+  const totalVotes = ranked.reduce((sum, plan) => sum + plan.votes.up + plan.votes.down, 0);
+  const headlineHtml = totalVotes
+    ? `🏆 Just nu ligger <strong>${ranked[0].title}</strong> i topp`
+    : `Ingen har röstat än – bli först!`;
+
+  leaderboardEl.innerHTML = `
+    <p class="plan-leaderboard-headline">${headlineHtml}</p>
+    <div class="plan-leaderboard-rows">${rowsHtml}</div>
+  `;
 }
 
 function renderPlanCard(plan) {
@@ -221,34 +271,41 @@ function renderPlanCard(plan) {
         .join(", ")}</p>`
     : "";
 
+  // Korten visar alltid det viktigaste på en gång (titel, karta, total
+  // körsträcka, röstning) – men etapptabellen och "vad ni kan göra" är
+  // ofta det mesta att skrolla igenom, så det göms i en <details> som
+  // fälls ut med ett klick, precis som kategorierna under "Hitta platser".
   card.innerHTML = `
     <div class="plan-card-header">
       <strong>${plan.title}</strong>
     </div>
     <p class="plan-subtitle">${plan.subtitle}</p>
     ${routeMapLine}
-    <table class="plan-table">
-      <thead>
-        <tr>
-          <th>Etapp</th>
-          <th>Hotellförslag</th>
-          <th>Pris</th>
-          <th>Karta</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
     ${totalDriveLine ? `<p class="plan-total-drive">${totalDriveLine}</p>` : ""}
     ${transferLine ? `<p class="plan-transfer">${transferLine}</p>` : ""}
-    ${
-      plan.summary
-        ? `<div class="plan-summary">
-            <strong>✨ Vad ni kan göra</strong>
-            <p>${plan.summary}</p>
-            ${beachesLine}
-          </div>`
-        : ""
-    }
+    <details class="plan-details">
+      <summary>📋 Etapper, hotell &amp; vad ni kan göra</summary>
+      <table class="plan-table">
+        <thead>
+          <tr>
+            <th>Etapp</th>
+            <th>Hotellförslag</th>
+            <th>Pris</th>
+            <th>Karta</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      ${
+        plan.summary
+          ? `<div class="plan-summary">
+              <strong>✨ Vad ni kan göra</strong>
+              <p>${plan.summary}</p>
+              ${beachesLine}
+            </div>`
+          : ""
+      }
+    </details>
     <div class="vote-row">
       <button class="vote-btn up">👍 <span class="up-count">${plan.votes.up}</span></button>
       <button class="vote-btn down">👎 <span class="down-count">${plan.votes.down}</span></button>
@@ -295,6 +352,10 @@ async function sendPlanVote(plan, voteValue, card) {
   const votes = await response.json();
   plan.votes = votes;
   updateVoteUI(card, votes);
+  // Rösten kan ha ändrat vilket alternativ som ligger i topp, så bygg om
+  // resultattavlan direkt – annars ser man bara sitt eget kort uppdateras
+  // och måste själv jämföra siffrorna i alla fyra korten för att veta.
+  renderPlanLeaderboard();
 }
 
 findBtn.addEventListener("click", () => {
