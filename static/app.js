@@ -29,6 +29,11 @@ const CATEGORY_LABELS = {
 // platserna efter avstånd, så vi visar bara de NÄRMASTE 20.
 const MAX_PER_CATEGORY = 20;
 
+// Reseplanerna som hämtats från /api/plans. Måste deklareras tidigt i
+// filen eftersom renderKpis() m.fl. läser den redan vid sidladdning,
+// långt innan loadPlans() (längre ner i filen) hinner sätta värdet.
+let currentPlans = [];
+
 // Översätter OSM:s "cuisine"-taggvärden (t.ex. "italian", "seafood") till
 // svenska rubriker för att gruppera restauranger. Listan är inte komplett –
 // allt som inte finns här visas med första bokstaven versal istället
@@ -508,10 +513,10 @@ function planCardId(plan) {
   return `plan-${plan.id}`;
 }
 
+// currentPlans deklareras längst upp i filen (se kommentar där).
 // Sparar senaste /api/plans-svaret så vi kan bygga om resultattavlan
 // (renderPlanLeaderboard) efter varje röst, utan att hämta om hela listan
 // från servern – sendPlanVote uppdaterar redan plan.votes i denna array.
-let currentPlans = [];
 
 function renderPlans(plans) {
   currentPlans = plans;
