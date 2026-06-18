@@ -79,12 +79,39 @@ const findBtn = document.getElementById("find-btn");
 const statusEl = document.getElementById("status");
 const resultsEl = document.getElementById("results");
 const plansEl = document.getElementById("plans");
+const radiusSelect = document.getElementById("radius");
 
 // Återanvänd sparat namn om man besökt sidan tidigare.
 personInput.value = localStorage.getItem("person") || "";
 personInput.addEventListener("input", () => {
   localStorage.setItem("person", personInput.value);
 });
+
+// Återanvänd senast valda sökradie också, så den inte nollställs till
+// default (2 km) varje gång sidan öppnas igen.
+radiusSelect.value = localStorage.getItem("radius") || "2";
+radiusSelect.addEventListener("change", () => {
+  localStorage.setItem("radius", radiusSelect.value);
+});
+
+// Två flikar ("Reseplaner" / "Hitta platser") istället för en lång sida
+// man måste skrolla igenom – se .tab-nav/.tab-section i index.html.
+// Bara EN sektion visas åt gången; knapparnas data-tab pekar på vilken
+// sektions-id som ska visas.
+function initTabs() {
+  const buttons = document.querySelectorAll(".tab-btn");
+  const sections = document.querySelectorAll(".tab-section");
+
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => {
+      buttons.forEach((b) => b.classList.toggle("active", b === button));
+      sections.forEach((section) =>
+        section.classList.toggle("hidden", section.id !== button.dataset.tab)
+      );
+    });
+  });
+}
+initTabs();
 
 // Reseplans-alternativen (se plans.py) är statiska och behöver ingen
 // GPS-position – ladda dem direkt när sidan öppnas, så familjen kan
@@ -233,7 +260,14 @@ function findNearbyPlaces() {
 async function loadPlaces(lat, lon) {
   statusEl.textContent = "Letar efter platser i närheten...";
 
-  const url = `/api/nearby?lat=${lat}&lon=${lon}&radius=1500`;
+  // Radien (1-10 km, default 2 km) väljs av användaren i dropdownen
+  // ovanför "Hitta platser"-knappen – se index.html (#radius) och
+  // radiusSelect ovan. Overpass-API:et (se overpass.py) vill ha
+  // radien i METER, så vi gångrar km-värdet med 1000.
+  const radiusKm = parseInt(radiusSelect.value, 10) || 2;
+  const radiusM = radiusKm * 1000;
+
+  const url = `/api/nearby?lat=${lat}&lon=${lon}&radius=${radiusM}`;
   const response = await fetch(url);
 
   if (!response.ok) {
@@ -242,9 +276,10 @@ async function loadPlaces(lat, lon) {
   }
 
   const places = await response.json();
+  const radiusText = radiusKm === 1 ? "1 km" : `${radiusKm} km`;
   statusEl.textContent = places.length
-    ? `Hittade ${places.length} platser inom 1,5 km.`
-    : "Hittade inga platser inom 1,5 km – prova en annan plats.";
+    ? `Hittade ${places.length} platser inom ${radiusText}.`
+    : `Hittade inga platser inom ${radiusText} – prova en större radie.`;
 
   renderPlaces(places);
 }

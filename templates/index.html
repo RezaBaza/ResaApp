@@ -66,22 +66,50 @@
 
   <!-- Vem röstar? Sparas i mobilens egen lagring (localStorage) så man
        inte behöver skriva namnet varje gång man öppnar sidan. Ligger
-       HÖGT UPP (före reseplanerna) eftersom man behöver ha skrivit sitt
-       namn för att kunna rösta på en reseplan också, inte bara platser. -->
+       HÖGT UPP, gemensamt för båda flikarna, eftersom man behöver ha
+       skrivit sitt namn för att rösta i någon av dem. -->
   <label for="person">Ditt namn:</label>
   <input id="person" type="text" placeholder="t.ex. Reza">
   <p id="status"></p>
 
-  <!-- Reseplans-alternativen (se plans.py / app.js: loadPlans) – fyra
-       hela resrutter att rösta på, laddas direkt vid sidladdning eftersom
-       de inte behöver GPS-position. -->
-  <div id="plans"></div>
+  <!-- Två separata flikar istället för en lång sida man måste skrolla
+       igenom – annars hamnar "Hitta platser"-knappen långt ner under
+       alla reseplans-korten. Bara EN flik är synlig i taget
+       (.tab-section.hidden i CSS:en), och knapparna i .tab-nav styr
+       vilken (se app.js: initTabs). -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="tab-plans">🗺️ Reseplaner</button>
+    <button class="tab-btn" data-tab="tab-nearby">📍 Hitta platser</button>
+  </nav>
 
-  <h1>Vad finns nära oss? 📍</h1>
+  <section id="tab-plans" class="tab-section">
+    <!-- Reseplans-alternativen (se plans.py / app.js: loadPlans) – fyra
+         hela resrutter att rösta på, laddas direkt vid sidladdning
+         eftersom de inte behöver GPS-position. -->
+    <div id="plans"></div>
+  </section>
 
-  <button id="find-btn">Hitta platser nära mig</button>
+  <section id="tab-nearby" class="tab-section hidden">
+    <h1>Vad finns nära oss? 📍</h1>
 
-  <div id="results"></div>
+    <label for="radius">Sökradie:</label>
+    <select id="radius">
+      <option value="1">1 km</option>
+      <option value="2" selected>2 km</option>
+      <option value="3">3 km</option>
+      <option value="4">4 km</option>
+      <option value="5">5 km</option>
+      <option value="6">6 km</option>
+      <option value="7">7 km</option>
+      <option value="8">8 km</option>
+      <option value="9">9 km</option>
+      <option value="10">10 km</option>
+    </select>
+
+    <button id="find-btn">Hitta platser nära mig</button>
+
+    <div id="results"></div>
+  </section>
 
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>

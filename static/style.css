@@ -129,6 +129,44 @@ label {
   font-size: 0.9rem;
 }
 
+/* Flikarna ("Reseplaner" / "Hitta platser") – se index.html (.tab-nav,
+   .tab-section) och app.js (initTabs). Bara EN .tab-section är synlig
+   åt gången (.hidden döljer den), så man slipper skrolla förbi alla
+   reseplans-kort för att hitta "Hitta platser"-knappen. */
+.tab-nav {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0.8rem 0;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 0.6rem 0.4rem;
+  font-size: 0.9rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  color: #555;
+}
+
+.tab-btn.active {
+  background: #2f6f4f;
+  color: white;
+  border-color: #2f6f4f;
+}
+
+.tab-section.hidden {
+  display: none;
+}
+
+select#radius {
+  width: 100%;
+  padding: 0.6rem;
+  font-size: 1rem;
+  box-sizing: border-box;
+  margin-bottom: 0.5rem;
+}
+
 input[type="text"] {
   width: 100%;
   padding: 0.6rem;
